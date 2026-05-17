@@ -12,6 +12,8 @@ const tabs = {
   news: NewsPage,
 }
 
+const pageSpring = { type: 'spring', stiffness: 300, damping: 30, mass: 0.8 }
+
 export default function MainApp() {
   const { activeTab, callState } = useStore()
   const ActivePage = tabs[activeTab] || ChatsPage
@@ -25,10 +27,10 @@ export default function MainApp() {
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -5 }}
-            transition={{ duration: 0.18, ease: 'easeInOut' }}
+            initial={{ opacity: 0, y: 6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.97 }}
+            transition={pageSpring}
             className="h-full"
           >
             <ActivePage />

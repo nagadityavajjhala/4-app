@@ -129,8 +129,8 @@ function StatusRing({ label, user, onPress, isAdd }) {
             className="w-[60px] h-[60px] rounded-full p-[2.5px]"
             style={{ background: 'linear-gradient(135deg, #ff453a 0%, #ff375f 50%, #ff9f0a 100%)' }}
           >
-            <div className="w-full h-full rounded-full bg-black p-[2.5px]">
-              <Avatar user={user} size={50} />
+              <div className="w-full h-full rounded-full bg-black p-[2.5px]">
+              <Avatar user={user} size={50} glow />
             </div>
           </div>
         )}

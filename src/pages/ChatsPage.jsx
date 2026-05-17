@@ -222,7 +222,7 @@ function ConvoRow({ convo, online, onPress }) {
       onClick={onPress}
       className="w-full flex items-center gap-3 py-3 px-3 rounded-2xl text-left transition-colors active:bg-white/[0.03]"
     >
-      <Avatar user={other} size={52} showOnline online={online} />
+      <Avatar user={other} size={52} showOnline online={online} glow={online} />
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-baseline gap-2">
           <span className="font-semibold text-[15px] tracking-tight truncate">{other?.displayName}</span>
@@ -916,7 +916,7 @@ function ChatView() {
           <Trash2 size={14} strokeWidth={1.8} />
         </motion.button>
 
-        <Avatar user={activeChatUser} size={36} />
+        <Avatar user={activeChatUser} size={36} glow={otherTyping} />
 
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-[15px] truncate leading-tight">
