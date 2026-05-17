@@ -412,7 +412,7 @@ export default function CallOverlay() {
               autoPlay
               playsInline
               className="fixed inset-0 w-full h-full object-cover"
-              style={{ zIndex: 50 }}
+              style={{ zIndex: 40 }}
             />
             <video
               ref={localVideoRef}
@@ -420,19 +420,19 @@ export default function CallOverlay() {
               muted
               playsInline
               className="fixed top-16 right-4 w-28 h-40 object-cover rounded-2xl border border-white/20 shadow-2xl"
-              style={{ zIndex: 51 }}
+              style={{ zIndex: 41 }}
             />
           </>
         )}
       </div>
 
-      {/* Full screen overlay */}
+      {/* Full screen overlay — transparent so video shows through */}
       {showFull && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-black flex flex-col"
+          className={`fixed inset-0 z-50 flex flex-col ${!isVideo ? 'bg-black' : ''}`}
         >
           {!isVideo && (
             <div className="flex-1 flex flex-col items-center justify-center gap-4">
