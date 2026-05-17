@@ -95,7 +95,7 @@ export default function NewsPage() {
         ) : error ? (
           <ErrorState onRetry={() => fetchNews(category, true)} />
         ) : (
-          <CompactGrid articles={articles} onOpen={(a) => setSelected(a)} />
+          <BentoGrid articles={articles} onOpen={(a) => setSelected(a)} />
         )}
       </div>
 
@@ -108,31 +108,39 @@ export default function NewsPage() {
   )
 }
 
-function CompactGrid({ articles, onOpen }) {
+function BentoGrid({ articles, onOpen }) {
   if (articles.length === 0) {
     return <p className="text-center text-white/30 text-[13px] pt-12">No news right now</p>
   }
 
-  // First two as larger cards, rest in 3-column grid
-  const [first, second, ...rest] = articles.slice(0, 14)
+  const items = articles.slice(0, 24)
+  const [first, second, third, fourth, fifth, ...rest] = items
 
   return (
     <div className="flex flex-col gap-2.5">
-      {/* First row: hero + compact */}
-      <div className="flex gap-2.5">
+      <div className="grid grid-cols-4 gap-2.5" style={{ gridAutoRows: 'auto' }}>
         {first && (
-          <HeroCard article={first} onOpen={onOpen} />
+          <BentoCard article={first} className="col-span-4 xs:col-span-2" aspect="16/9" index={0} onOpen={onOpen} label />
         )}
         {second && (
-          <CompactCard article={second} index={0} onOpen={onOpen} />
+          <BentoCard article={second} className="col-span-2 xs:col-span-1" aspect="1/1" index={1} onOpen={onOpen} />
+        )}
+        {third && (
+          <BentoCard article={third} className="col-span-2 xs:col-span-1" aspect="1/1" index={2} onOpen={onOpen} />
         )}
       </div>
-
-      {/* Rest in 3-col grid */}
+      <div className="grid grid-cols-4 gap-2.5">
+        {fourth && (
+          <BentoCard article={fourth} className="col-span-2" aspect="4/3" index={3} onOpen={onOpen} />
+        )}
+        {fifth && (
+          <BentoCard article={fifth} className="col-span-2" aspect="4/3" index={4} onOpen={onOpen} />
+        )}
+      </div>
       {rest.length > 0 && (
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
           {rest.map((article, i) => (
-            <CompactCard key={article.id || i} article={article} index={i + 1} onOpen={onOpen} />
+            <BentoCard key={article.id || i} article={article} className="col-span-1" aspect="1/1.1" index={i + 5} onOpen={onOpen} />
           ))}
         </div>
       )}
@@ -145,58 +153,37 @@ function timeAgo(dateStr) {
   catch { return '' }
 }
 
-function HeroCard({ article, onOpen }) {
+function BentoCard({ article, className, aspect, index, onOpen, label }) {
   const ts = article.publishedAt ? timeAgo(article.publishedAt) : null
+  const sizeClass = !label ? 'text-[10.5px] font-semibold p-2 leading-tight line-clamp-3' : 'font-bold text-[13px] p-3 leading-tight line-clamp-3'
+  const tsClass = label ? 'text-[9px] text-white/35 mt-1' : 'text-[7px] text-white/30 mt-0.5'
 
   return (
     <motion.button
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.15 }}
-      whileTap={{ scale: 0.97 }}
-      onClick={() => onOpen(article)}
-      className="flex-[2] min-w-0 rounded-2xl overflow-hidden text-left relative"
-      style={{ background: 'rgba(44,44,46,0.5)', aspectRatio: '1/1' }}
-    >
-      {article.image && (
-        <img src={article.image} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 p-3">
-        <span className="text-[8px] font-semibold uppercase tracking-widest" style={{ color: ACCENT }}>
-          {article.source || 'News'}
-        </span>
-        <h3 className="font-bold text-[13px] leading-tight text-white mt-0.5 line-clamp-3">
-          {article.title?.replace(/^[^:]+:\s*/, '')}
-        </h3>
-        {ts && <p className="text-[9px] text-white/35 mt-1">{ts}</p>}
-      </div>
-    </motion.button>
-  )
-}
-
-function CompactCard({ article, index, onOpen }) {
-  const ts = article.publishedAt ? timeAgo(article.publishedAt) : null
-
-  return (
-    <motion.button
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay: Math.min(0.02 * index, 0.2), duration: 0.12 }}
+      transition={{ delay: Math.min(0.02 * index, 0.25), duration: 0.12 }}
       whileTap={{ scale: 0.95 }}
       onClick={() => onOpen(article)}
-      className="min-w-0 rounded-2xl overflow-hidden text-left relative"
-      style={{ background: 'rgba(44,44,46,0.5)', aspectRatio: '1/1.15' }}
+      className={`min-w-0 rounded-2xl overflow-hidden text-left relative ${className}`}
+      style={{ background: 'rgba(44,44,46,0.5)', aspectRatio: aspect }}
     >
       {article.image && (
         <img src={article.image} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 p-2">
-        <h3 className="font-semibold text-[10.5px] leading-tight text-white line-clamp-3">
+      <div className="absolute bottom-0 left-0 right-0">
+        {label && (
+          <div className="px-3 pt-1">
+            <span className="text-[8px] font-semibold uppercase tracking-widest" style={{ color: ACCENT }}>
+              {article.source || 'News'}
+            </span>
+          </div>
+        )}
+        <h3 className={`text-white ${label ? 'font-bold text-[13px] p-3 pt-0.5 leading-tight line-clamp-3' : 'font-semibold text-[10.5px] p-2 leading-tight line-clamp-3'}`}>
           {article.title?.replace(/^[^:]+:\s*/, '')}
         </h3>
-        {ts && <p className="text-[7px] text-white/30 mt-0.5">{ts}</p>}
+        {ts && <p className={`${label ? 'px-3 pb-[10px] text-[9px] text-white/30' : 'px-2 pb-1.5 text-[7px] text-white/30'}`}>{ts}</p>}
       </div>
     </motion.button>
   )
@@ -304,13 +291,18 @@ function QuickReader({ article, onClose }) {
 function CompactSkeleton() {
   return (
     <div className="flex flex-col gap-2.5 pt-1">
-      <div className="flex gap-2.5">
-        <div className="flex-[2] rounded-2xl skeleton" style={{ aspectRatio: '1/1' }} />
-        <div className="flex-1 rounded-2xl skeleton" style={{ aspectRatio: '1/1.15' }} />
+      <div className="grid grid-cols-4 gap-2.5">
+        <div className="col-span-2 rounded-2xl skeleton" style={{ aspectRatio: '16/9' }} />
+        <div className="col-span-1 rounded-2xl skeleton" style={{ aspectRatio: '1/1' }} />
+        <div className="col-span-1 rounded-2xl skeleton" style={{ aspectRatio: '1/1' }} />
+      </div>
+      <div className="grid grid-cols-4 gap-2.5">
+        <div className="col-span-2 rounded-2xl skeleton" style={{ aspectRatio: '4/3' }} />
+        <div className="col-span-2 rounded-2xl skeleton" style={{ aspectRatio: '4/3' }} />
       </div>
       <div className="grid grid-cols-3 gap-2.5">
         {[1, 2, 3].map(i => (
-          <div key={i} className="rounded-2xl skeleton" style={{ aspectRatio: '1/1.15' }} />
+          <div key={i} className="rounded-2xl skeleton" style={{ aspectRatio: '1/1.1' }} />
         ))}
       </div>
     </div>

@@ -29,6 +29,7 @@ import ChatThemePicker from '../components/chat/ChatThemePicker'
 import GamesSheet from '../components/games/GamesSheet'
 import { WordleGameMessage, TriviaGameMessage } from '../components/games/GameMessage'
 import { scoreGuess } from '../lib/wordleWords'
+import { playMessageSound } from '../lib/notificationSound'
 const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥']
 
 function lastMessagePreview(msg) {
@@ -617,6 +618,8 @@ function ChatView() {
   const [showGames, setShowGames] = useState(false)
   const [showThemePicker, setShowThemePicker] = useState(false)
   const typingTimeoutRef = useRef(null)
+  const otherMsgCountRef = useRef(0)
+  const initialLoadDoneRef = useRef(false)
 
   const theme = CHAT_THEMES[themeId] || CHAT_THEMES.classic
 
@@ -665,6 +668,12 @@ function ChatView() {
         return ta - tb
       })
       setMessages(merged)
+      const others = merged.filter(m => m.senderId !== user.uid)
+      if (initialLoadDoneRef.current && others.length > otherMsgCountRef.current) {
+        playMessageSound()
+      }
+      otherMsgCountRef.current = others.length
+      initialLoadDoneRef.current = true
       requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'instant' }))
     })
     return unsub
