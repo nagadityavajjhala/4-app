@@ -53,7 +53,7 @@ export default function AuthPage() {
       }
     }
     setup().catch(err => {
-      if (!cancelled) toast.error('reCAPTCHA setup failed: ' + (err.message || err))
+      if (!cancelled) toast.error(err.code?.replace('auth/', '') || err.message || 'reCAPTCHA setup failed')
     })
     return () => { cancelled = true }
   }, [authMode])
@@ -73,10 +73,8 @@ export default function AuthPage() {
     } catch (err) {
       console.error('sendOtp error:', err)
       try { verifierRef.current?.reset() } catch {}
-      const msg = (err.message || '')
-        .replace('Firebase: ', '')
-        .replace(/ \(auth\/.*\)\.?/, '')
-      toast.error(msg || 'Something went wrong')
+      const code = err.code?.replace('auth/', '') || ''
+      toast.error(code || err.message || 'Something went wrong')
     } finally {
       setPhoneLoading(false)
     }
@@ -97,10 +95,7 @@ export default function AuthPage() {
         await signInWithEmailAndPassword(auth, email.trim(), password)
       }
     } catch (err) {
-      const msg = (err.message || '')
-        .replace('Firebase: ', '')
-        .replace(/ \(auth\/.*\)\.?/, '')
-      toast.error(msg)
+      toast.error(err.code?.replace('auth/', '') || err.message || 'Error')
     } finally {
       setLoading(false)
     }
@@ -114,10 +109,7 @@ export default function AuthPage() {
       // onAuthStateChanged in App.jsx handles profile creation
       toast.success('Signed in!')
     } catch (err) {
-      const msg = (err.message || '')
-        .replace('Firebase: ', '')
-        .replace(/ \(auth\/.*\)\.?/, '')
-      toast.error(msg || 'Invalid OTP')
+      toast.error(err.code?.replace('auth/', '') || err.message || 'Invalid OTP')
     } finally {
       setPhoneLoading(false)
     }
