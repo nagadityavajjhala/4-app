@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
 import { auth } from '../lib/firebase'
 import toast from 'react-hot-toast'
-import { Eye, EyeOff, Smartphone, Mail, ArrowLeft } from 'lucide-react'
+import { Eye, EyeOff, Smartphone, ArrowLeft } from 'lucide-react'
 import { ACCENT, ACCENT_SOFT, ACCENT_GLOW } from '../lib/accent'
 
 const AUTH_TABS = [
@@ -19,12 +19,20 @@ export default function AuthPage() {
   const [name, setName]         = useState('')
   const [showPw, setShowPw]     = useState(false)
   const [loading, setLoading]   = useState(false)
+  const [countryCode, setCountryCode] = useState('+91')
   const [phone, setPhone]       = useState('')
   const [otp, setOtp]           = useState('')
   const [otpSent, setOtpSent]   = useState(false)
   const [phoneLoading, setPhoneLoading] = useState(false)
-  const recaptchaRef = useRef(null)
   const confirmRef = useRef(null)
+
+  // Clean up old reCAPTCHA on unmount
+  useEffect(() => {
+    return () => {
+      try { window.recaptchaVerifier?.clear() } catch {}
+      delete window.recaptchaVerifier
+    }
+  }, [])
 
   useEffect(() => {
     if (authMode !== 'phone') {
@@ -33,13 +41,14 @@ export default function AuthPage() {
     }
   }, [authMode])
 
-  function createRecaptcha() {
-    if (!recaptchaRef.current) {
-      recaptchaRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-      })
-    }
-    return recaptchaRef.current
+  async function getRecaptcha() {
+    // Build a fresh one each time
+    try { window.recaptchaVerifier?.clear() } catch {}
+    const v = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible',
+    })
+    window.recaptchaVerifier = v
+    return v
   }
 
   async function handleEmailSubmit(e) {
@@ -69,10 +78,11 @@ export default function AuthPage() {
   async function sendOtp() {
     const cleaned = phone.replace(/\s+/g, '')
     if (!cleaned) { toast.error('Enter your phone number'); return }
+    const full = countryCode + cleaned
     setPhoneLoading(true)
     try {
-      const verifier = createRecaptcha()
-      const confirmation = await signInWithPhoneNumber(auth, cleaned, verifier)
+      const verifier = await getRecaptcha()
+      const confirmation = await signInWithPhoneNumber(auth, full, verifier)
       confirmRef.current = confirmation
       setOtpSent(true)
       toast.success('OTP sent!')
@@ -80,10 +90,7 @@ export default function AuthPage() {
       const msg = (err.message || '')
         .replace('Firebase: ', '')
         .replace(/ \(auth\/.*\)\.?/, '')
-      toast.error(msg)
-      if (recaptchaRef.current) {
-        recaptchaRef.current.reset()
-      }
+      toast.error(msg || 'Something went wrong')
     } finally {
       setPhoneLoading(false)
     }
@@ -91,7 +98,7 @@ export default function AuthPage() {
 
   async function verifyOtp() {
     if (!otp.trim()) { toast.error('Enter the OTP'); return }
-    setLoading(true)
+    setPhoneLoading(true)
     try {
       await confirmRef.current.confirm(otp.trim())
       // onAuthStateChanged in App.jsx handles profile creation
@@ -100,9 +107,9 @@ export default function AuthPage() {
       const msg = (err.message || '')
         .replace('Firebase: ', '')
         .replace(/ \(auth\/.*\)\.?/, '')
-      toast.error(msg)
+      toast.error(msg || 'Invalid OTP')
     } finally {
-      setLoading(false)
+      setPhoneLoading(false)
     }
   }
 
@@ -167,7 +174,8 @@ export default function AuthPage() {
                 <div className="flex gap-2">
                   <div className="flex-shrink-0">
                     <select
-                      defaultValue="+91"
+                      value={countryCode}
+                      onChange={e => setCountryCode(e.target.value)}
                       className="input-field w-[90px] text-center"
                       style={{ appearance: 'none' }}
                     >
@@ -209,7 +217,7 @@ export default function AuthPage() {
                   >
                     <ArrowLeft size={18} />
                   </button>
-                  <span className="text-[12px] text-white/40">OTP sent to {phone}</span>
+                  <span className="text-[12px] text-white/40">OTP sent to {countryCode} {phone}</span>
                 </div>
                 <input
                   type="text"
@@ -222,12 +230,12 @@ export default function AuthPage() {
                 />
                 <motion.button
                   whileTap={{ scale: 0.97 }}
-                  disabled={loading || otp.length < 4}
+                  disabled={phoneLoading || otp.length < 4}
                   onClick={verifyOtp}
                   className="w-full py-3.5 rounded-2xl text-[15px] font-semibold disabled:opacity-50 transition-opacity"
                   style={{ background: ACCENT, boxShadow: ACCENT_GLOW }}
                 >
-                  {loading ? <span className="flex items-center justify-center gap-2"><Spinner /> Verifying…</span> : 'Verify & Sign in'}
+                  {phoneLoading ? <span className="flex items-center justify-center gap-2"><Spinner /> Verifying…</span> : 'Verify & Sign in'}
                 </motion.button>
               </>
             )}
