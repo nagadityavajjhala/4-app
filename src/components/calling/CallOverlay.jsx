@@ -374,15 +374,7 @@ export default function CallOverlay() {
   }
 
   function toggleMinimize() {
-    if (minimized) {
-      setMinimized(false)
-    } else {
-      if (isVideo && remoteVideoRef.current && 'pictureInPictureEnabled' in document) {
-        enterPiP()
-      } else {
-        setMinimized(true)
-      }
-    }
+    setMinimized(v => !v)
   }
 
   function formatDuration(secs) {
@@ -403,38 +395,44 @@ export default function CallOverlay() {
       {/* Audio always plays regardless of minimized state */}
       <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
 
-      {/* Video elements — always mounted so stream keeps flowing */}
-      <div className={showFull ? '' : 'hidden'}>
-        {isVideo && (
-          <>
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="fixed inset-0 w-full h-full object-cover"
-              style={{ zIndex: 40 }}
-            />
-            <video
-              ref={localVideoRef}
-              autoPlay
-              muted
-              playsInline
-              className="fixed top-16 right-4 w-28 h-40 object-cover rounded-2xl border border-white/20 shadow-2xl"
-              style={{ zIndex: 41 }}
-            />
-          </>
-        )}
-      </div>
+      {/* Remote video — single element, repositioned by CSS */}
+      {isVideo && callState === 'active' && (
+        <video
+          ref={remoteVideoRef}
+          autoPlay
+          playsInline
+          className={minimized
+            ? 'fixed bottom-24 right-4 w-32 h-48 object-cover rounded-xl shadow-2xl'
+            : 'fixed inset-0 w-full h-full object-cover'
+          }
+          style={{ zIndex: minimized ? 60 : 40 }}
+        />
+      )}
 
-      {/* Full screen overlay — transparent so video shows through */}
+      {/* Local video — single element, repositioned by CSS */}
+      {isVideo && callState === 'active' && (
+        <video
+          ref={localVideoRef}
+          autoPlay
+          muted
+          playsInline
+          className={minimized
+            ? 'fixed top-24 left-4 w-20 h-28 object-cover rounded-xl border border-white/20 shadow-xl'
+            : 'fixed top-16 right-4 w-28 h-40 object-cover rounded-2xl border border-white/20 shadow-2xl'
+          }
+          style={{ zIndex: minimized ? 61 : 41 }}
+        />
+      )}
+
+      {/* Full screen overlay */}
       {showFull && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className={`fixed inset-0 z-50 flex flex-col ${!isVideo ? 'bg-black' : ''}`}
+          className="fixed inset-0 z-50 flex flex-col bg-black"
         >
-          {!isVideo && (
+          {(!isVideo || callState !== 'active') && (
             <div className="flex-1 flex flex-col items-center justify-center gap-4">
               <Avatar user={callData?.remoteUser} size={100} />
               <motion.div
