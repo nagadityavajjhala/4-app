@@ -36,8 +36,9 @@ export async function writeRingingCall({
       createdAt: serverTimestamp(),
     })
   } catch (err) {
-    if (err.code === 'PERMISSION_DENIED') {
-      throw new Error('RTDB permission denied. Go to Firebase Console → Realtime Database → Rules and set: ".read": "auth != null", ".write": "auth != null"')
+    const msg = String(err?.message || err?.code || '')
+    if (err?.code === 'PERMISSION_DENIED' || msg.toLowerCase().includes('denied')) {
+      throw new Error('Call failed: RTDB permission denied. Open Firebase Console → Realtime Database → Rules tab, paste:\n{ "rules": { ".read": "auth != null", ".write": "auth != null" } }')
     }
     throw err
   }

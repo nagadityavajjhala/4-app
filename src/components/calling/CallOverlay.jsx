@@ -182,10 +182,17 @@ export default function CallOverlay() {
   }, [conversationId, callData, addUnsub, attachRemoteStream, setCallState, addRemoteIce])
 
   const acquireMedia = useCallback(async () => {
-    const stream = await navigator.mediaDevices.getUserMedia(getMediaConstraints(isVideo))
-    localStreamRef.current = stream
-    if (localVideoRef.current) localVideoRef.current.srcObject = stream
-    return stream
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(getMediaConstraints(isVideo))
+      localStreamRef.current = stream
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream
+      return stream
+    } catch (err) {
+      if (String(err?.message || '').toLowerCase().includes('permission')) {
+        throw new Error('Microphone permission denied. Grant mic access in your browser/phone settings.')
+      }
+      throw err
+    }
   }, [isVideo])
 
   const startOutgoingCall = useCallback(async () => {

@@ -81,7 +81,7 @@ export default function App() {
 
   // Android back button — navigate one screen back, don't exit
   useEffect(() => {
-    let unsub
+    let removeListener
     try {
       CapacitorApp.addListener('backButton', () => {
         const s = useStore.getState()
@@ -94,9 +94,11 @@ export default function App() {
         } else {
           CapacitorApp.exitApp()
         }
-      }).then(h => { unsub = h.remove })
+      }).then(h => { removeListener = h.remove })
     } catch {}
-    return () => unsub?.()
+    return () => {
+      if (removeListener) removeListener()
+    }
   }, [])
 
   if (loading) return <LoadingScreen />
