@@ -1,17 +1,29 @@
-const CACHE_KEY = 'ht-news-cache-v1'
+const CACHE_KEY = 'toi-news-cache-v2'
 
 const FEEDS = {
-  Top: 'https://www.hindustantimes.com/feeds/rss/topnews/rssfeed.xml',
-  India: 'https://www.hindustantimes.com/feeds/rss/india/feed.xml',
-  World: 'https://www.hindustantimes.com/feeds/rss/world/feed.xml',
-  Tech: 'https://www.hindustantimes.com/feeds/rss/technology/feed.xml',
-  Science: 'https://www.hindustantimes.com/feeds/rss/science/feed.xml',
-  Sports: 'https://www.hindustantimes.com/feeds/rss/sports/feed.xml',
-  Business: 'https://www.hindustantimes.com/feeds/rss/business/feed.xml',
-  Entertainment: 'https://www.hindustantimes.com/feeds/rss/entertainment/feed.xml',
+  Top: 'https://timesofindia.indiatimes.com/rssfeedstopstories.cms',
+  India: 'https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms',
+  World: 'https://indianexpress.com/section/world/feed/',
+  Tech: 'https://timesofindia.indiatimes.com/rssfeeds/66949542.cms',
+  Sports: 'https://timesofindia.indiatimes.com/rssfeeds/4719148.cms',
+  Business: 'https://timesofindia.indiatimes.com/rssfeeds/1898055.cms',
+  Entertainment: 'https://timesofindia.indiatimes.com/rssfeeds/1081479906.cms',
+  Science: 'https://timesofindia.indiatimes.com/rssfeeds/-2128672765.cms',
+}
+
+const SOURCES = {
+  'https://timesofindia.indiatimes.com/': 'Times of India',
+  'https://indianexpress.com/': 'Indian Express',
 }
 
 export const NEWS_TOPICS = Object.keys(FEEDS)
+
+function detectSource(url) {
+  for (const [prefix, name] of Object.entries(SOURCES)) {
+    if (url.startsWith(prefix)) return name
+  }
+  return 'News'
+}
 
 function parseRss(text) {
   const doc = new DOMParser().parseFromString(text, 'text/xml')
@@ -24,15 +36,15 @@ function parseRss(text) {
     const media = item.querySelector('media\\:content, content')
     const imgSrc = media?.getAttribute('url')
       || item.querySelector('enclosure')?.getAttribute('url')
-      || (desc.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1]?.replace(/&amp;/g, '&'))
+      || (desc?.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1]?.replace(/&amp;/g, '&'))
       || null
-    const cleanDesc = desc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    const cleanDesc = (desc || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
     const summaryText = cleanDesc.length > 300 ? cleanDesc.slice(0, 300) + '…' : cleanDesc
     return {
       id: i,
       title,
       link,
-      source: 'Hindustan Times',
+      source: detectSource(link),
       publishedAt: pubDate,
       description: summaryText,
       image: imgSrc,
@@ -76,16 +88,35 @@ export async function fetchHindustanTimes(category = 'Top') {
   const feedUrl = FEEDS[category] || FEEDS.Top
 
   const attempts = [
+    // rss2json — handles CORS, returns JSON
+    async () => {
+      const json = await fetchText(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`)
+      const data = JSON.parse(json)
+      if (data.status !== 'ok' || !data.items?.length) throw new Error('no items')
+      const source = detectSource(feedUrl)
+      return data.items.slice(0, 30).map((item, i) => {
+        const cleanDesc = (item.description || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+        const summaryText = cleanDesc.length > 300 ? cleanDesc.slice(0, 300) + '…' : cleanDesc
+        return {
+          id: i,
+          title: item.title || '',
+          link: item.link || '',
+          source,
+          publishedAt: item.pubDate || '',
+          description: summaryText,
+          image: item.thumbnail || item.enclosure?.link || null,
+          contentSnippet: summaryText,
+        }
+      }).filter(a => a.title && a.link)
+    },
+    // allorigins proxy
     async () => {
       const xml = await fetchText(`https://api.allorigins.win/raw?url=${encodeURIComponent(feedUrl)}`)
       return parseRss(xml)
     },
+    // corsproxy.io fallback
     async () => {
       const xml = await fetchText(`https://corsproxy.io/?${encodeURIComponent(feedUrl)}`)
-      return parseRss(xml)
-    },
-    async () => {
-      const xml = await fetchText(feedUrl)
       return parseRss(xml)
     },
   ]
@@ -97,7 +128,7 @@ export async function fetchHindustanTimes(category = 'Top') {
         writeCache(category, articles)
         return articles
       }
-    } catch { /* next */ }
+    } catch (e) { /* next */ }
   }
 
   const cached = readCache(category)
