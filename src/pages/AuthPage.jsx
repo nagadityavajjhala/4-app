@@ -314,7 +314,7 @@ export default function AuthPage() {
       </motion.div>
 
       {/* reCAPTCHA container — invisible */}
-      <div id="recaptcha-container" ref={recaptchaRef} />
+      <div id="recaptcha-container" />
 
       <motion.p
         initial={{ opacity: 0 }}
