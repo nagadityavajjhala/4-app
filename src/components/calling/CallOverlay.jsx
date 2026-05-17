@@ -81,7 +81,6 @@ export default function CallOverlay() {
   const roleRef = useRef('caller')
 
   const [minimized, setMinimized] = useState(false)
-  const [pipActive, setPipActive] = useState(false)
 
   const isVideo = callData?.type === 'video'
   const conversationId = callData?.conversationId
@@ -356,27 +355,6 @@ export default function CallOverlay() {
     }
   }
 
-  async function enterPiP() {
-    if (!isVideo || !remoteVideoRef.current) return
-    try {
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture()
-        setPipActive(false)
-      } else {
-        await remoteVideoRef.current.requestPictureInPicture()
-        setPipActive(true)
-        setMinimized(true)
-      }
-    } catch (err) {
-      // PiP not supported on this device — fallback to in-app minified view
-      setMinimized(true)
-    }
-  }
-
-  function toggleMinimize() {
-    setMinimized(v => !v)
-  }
-
   function formatDuration(secs) {
     const m = Math.floor(secs / 60).toString().padStart(2, '0')
     const s = (secs % 60).toString().padStart(2, '0')
@@ -388,51 +366,38 @@ export default function CallOverlay() {
       ? formatDuration(callDuration)
       : statusLabel || (callState === 'outgoing' ? 'Calling…' : 'Incoming call')
 
-  const showFull = !minimized || callState === 'incoming' || callState === 'outgoing'
+  const showMinimized = minimized && callState === 'active'
 
   return (
     <>
-      {/* Audio always plays regardless of minimized state */}
       <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
 
-      {/* Remote video — always mounted for video calls so streams attach properly */}
-      {isVideo && (
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          className={minimized && callState === 'active'
-            ? 'fixed bottom-24 right-4 w-32 h-48 object-cover rounded-xl shadow-2xl'
-            : 'fixed inset-0 w-full h-full object-cover'
-          }
-          style={{ zIndex: minimized && callState === 'active' ? 60 : 40 }}
-        />
-      )}
-
-      {/* Local video — always mounted for video calls */}
-      {isVideo && (
-        <video
-          ref={localVideoRef}
-          autoPlay
-          muted
-          playsInline
-          className={minimized && callState === 'active'
-            ? 'fixed top-24 left-4 w-20 h-28 object-cover rounded-xl border border-white/20 shadow-xl'
-            : 'fixed top-16 right-4 w-28 h-40 object-cover rounded-2xl border border-white/20 shadow-2xl'
-          }
-          style={{ zIndex: minimized && callState === 'active' ? 61 : 41 }}
-        />
-      )}
-
-      {/* Full screen overlay */}
-      {showFull && (
+      {/* Full-screen overlay */}
+      {!showMinimized && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex flex-col bg-black"
+          className="fixed inset-0 z-50 bg-black flex flex-col"
         >
-          {(!isVideo || callState !== 'active') && (
+          {/* Video */}
+          {isVideo ? (
+            <>
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              <video
+                ref={localVideoRef}
+                autoPlay
+                muted
+                playsInline
+                className="absolute top-16 right-4 w-28 h-40 object-cover rounded-2xl border border-white/20 shadow-2xl z-10"
+              />
+            </>
+          ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-4">
               <Avatar user={callData?.remoteUser} size={100} />
               <motion.div
@@ -449,16 +414,17 @@ export default function CallOverlay() {
           {/* Minimize button (active call only) */}
           {callState === 'active' && (
             <button
-              onClick={toggleMinimize}
-              className="fixed top-12 left-4 z-[60] w-9 h-9 rounded-full flex items-center justify-center"
+              onClick={() => setMinimized(true)}
+              className="absolute top-12 left-4 z-20 w-9 h-9 rounded-full flex items-center justify-center"
               style={{ background: 'rgba(255,255,255,0.12)' }}
             >
               <Minimize2 size={16} className="text-white/80" />
             </button>
           )}
 
+          {/* Incoming: answer / decline */}
           {callState === 'incoming' && (
-            <div className="fixed bottom-36 left-0 right-0 flex justify-center gap-16" style={{ zIndex: 60 }}>
+            <div className="absolute bottom-36 left-0 right-0 flex justify-center gap-16">
               <CallButton icon={PhoneOff} onPress={declineIncomingCall} color="#ff453a" large />
               <CallButton
                 icon={Phone}
@@ -472,8 +438,9 @@ export default function CallOverlay() {
             </div>
           )}
 
+          {/* Outgoing / Active: controls */}
           {(callState === 'outgoing' || callState === 'active') && (
-            <div className="fixed bottom-0 left-0 right-0 pb-safe pb-10 flex items-center justify-center gap-8" style={{ zIndex: 60 }}>
+            <div className="absolute bottom-0 left-0 right-0 pb-safe pb-10 flex items-center justify-center gap-8">
               <CallButton
                 icon={muted ? MicOff : Mic}
                 onPress={toggleMute}
@@ -494,56 +461,73 @@ export default function CallOverlay() {
         </motion.div>
       )}
 
-      {/* Minimized floating bar */}
-      {minimized && callState === 'active' && (
-        <motion.div
-          initial={{ y: -80, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -80, opacity: 0 }}
-          className="fixed top-0 left-0 right-0 z-50 px-3 pt-2 pb-2"
-          style={{
-            background: 'rgba(10,10,12,0.92)',
-            backdropFilter: 'saturate(200%) blur(50px)',
-            WebkitBackdropFilter: 'saturate(200%) blur(50px)',
-          }}
-        >
-          <div className="flex items-center justify-between rounded-2xl px-4 py-2.5"
-            style={{ background: 'rgba(44,44,46,0.6)' }}
+      {/* Minimized — remote video as floating window + top bar */}
+      {showMinimized && (
+        <>
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            className="fixed bottom-24 right-4 w-32 h-48 object-cover rounded-xl shadow-2xl"
+            style={{ zIndex: 60 }}
+          />
+          <video
+            ref={localVideoRef}
+            autoPlay
+            muted
+            playsInline
+            className="fixed top-24 left-4 w-20 h-28 object-cover rounded-xl border border-white/20 shadow-xl"
+            style={{ zIndex: 61 }}
+          />
+          <motion.div
+            initial={{ y: -80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -80, opacity: 0 }}
+            className="fixed top-0 left-0 right-0 z-50 px-3 pt-2 pb-2"
+            style={{
+              background: 'rgba(10,10,12,0.92)',
+              backdropFilter: 'saturate(200%) blur(50px)',
+              WebkitBackdropFilter: 'saturate(200%) blur(50px)',
+            }}
           >
-            <div className="flex items-center gap-3 min-w-0">
-              <Avatar user={callData?.remoteUser} size={32} />
-              <div className="min-w-0">
-                <p className="text-white text-[14px] font-medium truncate">
-                  {callData?.remoteUser?.displayName || 'Call'}
-                </p>
-                <p className="text-white/40 text-[11px]">{displayStatus}</p>
+            <div className="flex items-center justify-between rounded-2xl px-4 py-2.5"
+              style={{ background: 'rgba(44,44,46,0.6)' }}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar user={callData?.remoteUser} size={32} />
+                <div className="min-w-0">
+                  <p className="text-white text-[14px] font-medium truncate">
+                    {callData?.remoteUser?.displayName || 'Call'}
+                  </p>
+                  <p className="text-white/40 text-[11px]">{displayStatus}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={toggleMute}
+                  className="w-9 h-9 rounded-full flex items-center justify-center"
+                  style={{ background: muted ? ACCENT : 'rgba(255,255,255,0.1)' }}
+                >
+                  {muted ? <MicOff size={14} className="text-white" /> : <Mic size={14} className="text-white/70" />}
+                </button>
+                <button
+                  onClick={() => setMinimized(false)}
+                  className="w-9 h-9 rounded-full flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.1)' }}
+                >
+                  <Maximize2 size={14} className="text-white/70" />
+                </button>
+                <button
+                  onClick={hangUp}
+                  className="w-9 h-9 rounded-full flex items-center justify-center"
+                  style={{ background: '#ff453a' }}
+                >
+                  <PhoneOff size={14} className="text-white" />
+                </button>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={toggleMute}
-                className="w-9 h-9 rounded-full flex items-center justify-center"
-                style={{ background: muted ? ACCENT : 'rgba(255,255,255,0.1)' }}
-              >
-                {muted ? <MicOff size={14} className="text-white" /> : <Mic size={14} className="text-white/70" />}
-              </button>
-              <button
-                onClick={toggleMinimize}
-                className="w-9 h-9 rounded-full flex items-center justify-center"
-                style={{ background: 'rgba(255,255,255,0.1)' }}
-              >
-                <Maximize2 size={14} className="text-white/70" />
-              </button>
-              <button
-                onClick={hangUp}
-                className="w-9 h-9 rounded-full flex items-center justify-center"
-                style={{ background: '#ff453a' }}
-              >
-                <PhoneOff size={14} className="text-white" />
-              </button>
-            </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </>
       )}
     </>
   )
