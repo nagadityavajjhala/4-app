@@ -975,19 +975,22 @@ function ChatView() {
                     type="button"
                     onClick={() => setReactionTarget(reactionTarget === msg.id ? null : msg.id)}
                     onDoubleClick={() => toggleReaction(msg, '👍')}
-                    className={isMine ? 'bubble-sent' : 'bubble-received'}
                     style={{
-                      background: isMine ? undefined : (theme.received || 'rgba(44,44,46,0.92)'),
-                      borderRadius: '22px',
-                      borderBottomRightRadius: isMine ? '4px' : '22px',
-                      borderBottomLeftRadius: isMine ? '22px' : '4px',
                       textAlign: isMine ? 'right' : 'left',
                       width: 'fit-content',
                       maxWidth: '75vw',
+                      background: isMine
+                        ? 'linear-gradient(135deg, #ff453a 0%, #ff375f 100%)'
+                        : (theme.received || 'rgba(44,44,46,0.92)'),
+                      borderRadius: '22px',
+                      borderBottomRightRadius: isMine ? '4px' : '22px',
+                      borderBottomLeftRadius: isMine ? '22px' : '4px',
                       padding: '10px 16px',
                       fontSize: 15,
                       lineHeight: 1.55,
                       color: '#fff',
+                      boxShadow: isMine ? '0 2px 12px rgba(255,69,58,0.2)' : 'none',
+                      border: isMine ? 'none' : '0.5px solid rgba(255,255,255,0.05)',
                     }}
                   >
                     <MessageContent

@@ -111,17 +111,6 @@
   .input-field::placeholder { color: rgba(255, 255, 255, 0.25); }
   .input-field::selection { background: rgba(255, 69, 58, 0.3); }
 
-  /* ── Chat bubbles (inline styles used in component for sizing) ── */
-  .bubble-sent {
-    background: linear-gradient(135deg, #ff453a 0%, #ff375f 100%);
-    box-shadow: 0 2px 12px rgba(255, 69, 58, 0.2);
-  }
-
-  .bubble-received {
-    background: rgba(44, 44, 46, 0.92);
-    border: 0.5px solid rgba(255, 255, 255, 0.05);
-  }
-
   /* ── Skeleton ── */
   .skeleton {
     background: linear-gradient(90deg,
