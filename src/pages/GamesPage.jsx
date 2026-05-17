@@ -73,20 +73,6 @@ const CENTERS = [0,1,2,3,4,5,6,7,8].map(i => {
   return { x: PAD + col * STEP + CELL / 2, y: PAD + row * STEP + CELL / 2 }
 })
 
-function getLineStyle(line) {
-  const a = CENTERS[line[0]], b = CENTERS[line[2]]
-  const dx = b.x - a.x, dy = b.y - a.y
-  const len = Math.sqrt(dx * dx + dy * dy)
-  const angle = Math.atan2(dy, dx) * (180 / Math.PI)
-  return {
-    left: a.x,
-    top: a.y - 2,
-    width: len,
-    transformOrigin: 'left',
-    transform: `rotate(${angle}deg)`,
-  }
-}
-
 export default function GamesPage() {
   const [board, setBoard] = useState(Array(9).fill(null))
   const [xIsNext, setXIsNext] = useState(true)
@@ -255,19 +241,32 @@ export default function GamesPage() {
           transition={{ duration: 0.12 }}
           className="relative"
         >
-          {result?.line && (
-            <motion.div
-              initial={{ opacity: 0, scaleX: 0 }}
-              animate={{ opacity: 1, scaleX: 1 }}
-              transition={{ delay: 0.2, ...spring }}
-              className="absolute z-20 h-[3px] rounded-full pointer-events-none"
-              style={{
-                background: ACCENT,
-                boxShadow: '0 0 10px rgba(255,69,58,0.5)',
-                ...getLineStyle(result.line),
-              }}
-            />
-          )}
+          {result?.line && (() => {
+            const a = CENTERS[result.line[0]], b = CENTERS[result.line[2]]
+            const dx = b.x - a.x, dy = b.y - a.y
+            const len = Math.sqrt(dx * dx + dy * dy)
+            const angle = Math.atan2(dy, dx) * (180 / Math.PI)
+            return (
+              <div
+                className="absolute z-20 pointer-events-none"
+                style={{ left: a.x, top: a.y - 2 }}
+              >
+                <motion.div
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ delay: 0.2, ...spring }}
+                  className="h-[3px] rounded-full origin-left"
+                  style={{
+                    width: len,
+                    background: ACCENT,
+                    boxShadow: '0 0 10px rgba(255,69,58,0.5)',
+                    transform: `rotate(${angle}deg)`,
+                    transformOrigin: 'left',
+                  }}
+                />
+              </div>
+            )
+          })()}
 
           <div
             className="grid grid-cols-3 gap-1.5 p-3 rounded-3xl"

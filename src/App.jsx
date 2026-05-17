@@ -7,6 +7,7 @@ import { Toaster } from 'react-hot-toast'
 import { auth, db, rtdb } from './lib/firebase'
 import { useStore } from './lib/store'
 import { getOrCreateKeypair, getPublicKeyB64 } from './lib/crypto'
+import { App as CapacitorApp } from '@capacitor/app'
 import AuthPage from './pages/AuthPage'
 import MainApp from './pages/MainApp'
 import LoadingScreen from './components/ui/LoadingScreen'
@@ -77,6 +78,26 @@ export default function App() {
     })
     return unsub
   }, [user, setOnlineUsers])
+
+  // Android back button — navigate one screen back, don't exit
+  useEffect(() => {
+    let unsub
+    try {
+      CapacitorApp.addListener('backButton', () => {
+        const s = useStore.getState()
+        if (s.callState) {
+          s.setCallState(null)
+        } else if (s.activeChatId) {
+          s.clearActiveChat()
+        } else if (s.activeTab !== 'chats') {
+          s.setActiveTab('chats')
+        } else {
+          CapacitorApp.exitApp()
+        }
+      }).then(h => { unsub = h.remove })
+    } catch {}
+    return () => unsub?.()
+  }, [])
 
   if (loading) return <LoadingScreen />
 

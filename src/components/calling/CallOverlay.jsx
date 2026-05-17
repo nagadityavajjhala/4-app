@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { useStore } from '../../lib/store'
 import Avatar from '../ui/Avatar'
 import { Phone, PhoneOff, Video, VideoOff, Mic, MicOff } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { startRinging, stopRinging } from '../../lib/ringtone'
 import {
   writeRingingCall,
@@ -229,6 +230,7 @@ export default function CallOverlay() {
       )
     } catch (err) {
       console.error('Outgoing call error:', err)
+      toast.error(err?.message || 'Call failed')
       hangUp()
     }
   }, [
@@ -266,6 +268,7 @@ export default function CallOverlay() {
       )
     } catch (err) {
       console.error('Answer call error:', err)
+      toast.error(err?.message || 'Could not answer call')
       hangUp()
     }
   }, [

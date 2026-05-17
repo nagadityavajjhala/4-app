@@ -24,16 +24,23 @@ export async function writeRingingCall({
   offer,
 }) {
   const base = callSignalRef(calleeId, conversationId)
-  await set(base, {
-    callerId,
-    calleeId,
-    conversationId,
-    type: type || 'audio',
-    status: 'ringing',
-    offer: { sdp: offer.sdp, type: offer.type },
-    answer: null,
-    createdAt: serverTimestamp(),
-  })
+  try {
+    await set(base, {
+      callerId,
+      calleeId,
+      conversationId,
+      type: type || 'audio',
+      status: 'ringing',
+      offer: { sdp: offer.sdp, type: offer.type },
+      answer: null,
+      createdAt: serverTimestamp(),
+    })
+  } catch (err) {
+    if (err.code === 'PERMISSION_DENIED') {
+      throw new Error('RTDB permission denied. Go to Firebase Console → Realtime Database → Rules and set: ".read": "auth != null", ".write": "auth != null"')
+    }
+    throw err
+  }
 }
 
 export async function writeCallAnswer(calleeId, conversationId, answer) {
