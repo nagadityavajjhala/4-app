@@ -309,7 +309,7 @@ function StatusViewer({ group, onClose }) {
       className="fixed inset-0 z-50 bg-black flex flex-col"
     >
       {/* Progress bars */}
-      <div className="flex gap-1 px-4 pt-safe pt-3">
+      <div className="flex gap-1 px-4 pt-safe pt-3" style={{ position: 'relative', zIndex: 10 }}>
         {group.items.map((_, i) => (
           <div key={i} className="flex-1 h-[3px] rounded-full overflow-hidden"
             style={{ background: 'rgba(255,255,255,0.2)' }}>
@@ -324,7 +324,9 @@ function StatusViewer({ group, onClose }) {
       </div>
 
       {/* User header */}
-      <div className="flex items-center gap-3 px-4 pt-3 pb-2">
+      <div style={{ position: 'relative', zIndex: 10 }}
+        className="flex items-center gap-3 px-4 pt-3 pb-2"
+      >
         <Avatar user={group.user} size={36} />
         <div>
           <p className="font-semibold text-[14px]">{group.user?.displayName}</p>
@@ -349,26 +351,29 @@ function StatusViewer({ group, onClose }) {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 gap-5">
-        {current?.image && (
-          <img
-            src={current.image}
-            alt=""
-            className="w-full max-h-72 object-cover rounded-3xl"
-          />
-        )}
-        {current?.text && (
-          <p className="text-[22px] font-medium text-center leading-snug">
-            {current.text}
-          </p>
-        )}
-      </div>
+      {/* Content + tap zones - wrapped so tap zones don't overlap header */}
+      <div className="flex-1 relative">
+        {/* Content */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-6 gap-5">
+          {current?.image && (
+            <img
+              src={current.image}
+              alt=""
+              className="w-full max-h-72 object-cover rounded-3xl"
+            />
+          )}
+          {current?.text && (
+            <p className="text-[22px] font-medium text-center leading-snug">
+              {current.text}
+            </p>
+          )}
+        </div>
 
-      {/* Tap zones */}
-      <div className="absolute inset-0 flex">
-        <div className="flex-1" onClick={prev} />
-        <div className="flex-1" onClick={next} />
+        {/* Tap zones - only over content area */}
+        <div className="absolute inset-0 flex">
+          <div className="flex-1" onClick={prev} />
+          <div className="flex-1" onClick={next} />
+        </div>
       </div>
     </motion.div>
   )

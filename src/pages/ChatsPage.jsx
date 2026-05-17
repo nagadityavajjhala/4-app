@@ -963,7 +963,7 @@ function ChatView() {
                     type="button"
                     onClick={() => setReactionTarget(reactionTarget === msg.id ? null : msg.id)}
                     onDoubleClick={() => toggleReaction(msg, '👍')}
-                    className="rounded-2xl px-4 py-2.5 max-w-[80%] text-[14px] leading-relaxed"
+                    className="rounded-2xl px-4 py-2.5 text-[14px] leading-relaxed"
                     style={{
                       background: isMine ? theme.sent : theme.received,
                       color: '#fff',
@@ -971,6 +971,8 @@ function ChatView() {
                       borderBottomRightRadius: isMine ? '6px' : '20px',
                       borderBottomLeftRadius: isMine ? '20px' : '6px',
                       textAlign: isMine ? 'right' : 'left',
+                      maxWidth: '75vw',
+                      width: 'fit-content',
                     }}
                   >
                     <MessageContent
