@@ -1179,7 +1179,7 @@ function MessageContent({ msg, isMine, viewerUid, onWordleGuess, onTriviaAnswer 
   if (msg.type === 'audio' && audioSrc) {
     return <VoiceBubble url={audioSrc} duration={msg.audioDuration} isMine={isMine} />
   }
-  return <div style={{ textAlign: isMine ? 'right' : 'left', width: '100%' }}>{msg.text || ''}</div>
+  return <div style={{ textAlign: isMine ? 'right' : 'left' }}>{msg.text || ''}</div>
 }
 
 function VoiceBubble({ url, duration, isMine }) {

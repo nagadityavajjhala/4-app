@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   collection, query, where, onSnapshot,
-  addDoc, serverTimestamp, Timestamp, deleteDoc, doc, updateDoc,
+  addDoc, serverTimestamp, Timestamp, deleteDoc, doc, updateDoc, setDoc,
 } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { useStore } from '../../lib/store'
@@ -276,19 +276,28 @@ function StatusViewer({ group, onClose }) {
   async function deleteCurrent() {
     if (!current?.id || deleting) return
     setDeleting(true)
+    const ref = doc(db, 'statuses', current.id)
+    let ok = false
     try {
-      await deleteDoc(doc(db, 'statuses', current.id))
-    } catch {
+      await deleteDoc(ref)
+      ok = true
+    } catch (e1) {
       try {
-        await updateDoc(doc(db, 'statuses', current.id), { deleted: true })
-      } catch {
-        toast.error('Could not delete status')
-        setDeleting(false)
-        return
+        await updateDoc(ref, { deleted: true, deletedAt: serverTimestamp() })
+        ok = true
+      } catch (e2) {
+        try {
+          await setDoc(ref, { deleted: true, deletedAt: serverTimestamp() }, { merge: true })
+          ok = true
+        } catch (e3) {
+          toast.error('Status delete failed — ensure Firestore rules are deployed (see firestore.rules)')
+        }
       }
     }
-    toast.success('Status deleted')
-    onClose()
+    if (ok) {
+      toast.success('Status deleted')
+      onClose()
+    }
     setDeleting(false)
   }
 
