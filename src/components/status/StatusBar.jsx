@@ -333,18 +333,16 @@ function StatusViewer({ group, onClose }) {
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {isOwn && (
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); deleteCurrent() }}
-              disabled={deleting}
-              className="p-1.5 rounded-full text-white/50 active:text-red-400 disabled:opacity-40"
-              style={{ background: 'rgba(255,69,58,0.15)' }}
-              aria-label="Delete status"
-            >
-              <Trash2 size={18} strokeWidth={1.8} />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); deleteCurrent() }}
+            disabled={deleting}
+            className="p-1.5 rounded-full text-white/50 active:text-red-400 disabled:opacity-40"
+            style={{ background: 'rgba(255,69,58,0.15)' }}
+            aria-label="Delete status"
+          >
+            <Trash2 size={18} strokeWidth={1.8} />
+          </button>
           <button type="button" onClick={onClose} className="p-1 text-white/50 active:text-white">
             <X size={22} strokeWidth={1.8} />
           </button>
