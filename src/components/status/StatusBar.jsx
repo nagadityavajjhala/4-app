@@ -109,31 +109,33 @@ function StatusRing({ label, user, onPress, isAdd }) {
   return (
     <button
       onClick={onPress}
-      className="flex flex-col items-center gap-1.5 flex-shrink-0"
+      className="flex flex-col items-center gap-1.5 flex-shrink-0 active:scale-95 transition-transform duration-150"
     >
       <div className="relative">
         {isAdd ? (
           <div
-            className="w-[58px] h-[58px] rounded-full flex items-center justify-center"
+            className="w-[60px] h-[60px] rounded-full flex items-center justify-center"
             style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1.5px dashed rgba(255,255,255,0.2)',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1.5px dashed rgba(255,255,255,0.15)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
             }}
           >
-            <Plus size={20} strokeWidth={1.8} className="text-white/40" />
+            <Plus size={20} strokeWidth={1.8} className="text-white/35" />
           </div>
         ) : (
           <div
-            className="w-[58px] h-[58px] rounded-full p-[2px]"
-            style={{ background: 'linear-gradient(135deg, #ff453a 0%, #30d158 50%, #ff9f0a 100%)' }}
+            className="w-[60px] h-[60px] rounded-full p-[2.5px]"
+            style={{ background: 'linear-gradient(135deg, #ff453a 0%, #ff375f 50%, #ff9f0a 100%)' }}
           >
-            <div className="w-full h-full rounded-full bg-black p-[2px]">
+            <div className="w-full h-full rounded-full bg-black p-[2.5px]">
               <Avatar user={user} size={50} />
             </div>
           </div>
         )}
       </div>
-      <span className="text-[10px] text-white/45 max-w-[58px] truncate">{label}</span>
+      <span className="text-[10px] text-white/40 max-w-[60px] truncate font-medium tracking-tight">{label}</span>
     </button>
   )
 }
@@ -339,31 +341,38 @@ function StatusViewer({ group, onClose }) {
             type="button"
             onClick={e => { e.stopPropagation(); deleteCurrent() }}
             disabled={deleting}
-            className="p-1.5 rounded-full text-white/50 active:text-red-400 disabled:opacity-40"
-            style={{ background: 'rgba(255,69,58,0.15)' }}
+            className="p-1.5 rounded-full text-white/50 active:text-red-400 disabled:opacity-40 transition-all"
+            style={{ background: 'rgba(255,69,58,0.12)' }}
             aria-label="Delete status"
           >
-            <Trash2 size={18} strokeWidth={1.8} />
+            <Trash2 size={17} strokeWidth={1.8} />
           </button>
-          <button type="button" onClick={onClose} className="p-1 text-white/50 active:text-white">
-            <X size={22} strokeWidth={1.8} />
-          </button>
+          <motion.button
+            type="button"
+            onClick={onClose}
+            whileTap={{ scale: 0.88 }}
+            className="w-7 h-7 rounded-full flex items-center justify-center"
+            style={{ background: 'rgba(255,255,255,0.1)' }}
+          >
+            <X size={15} strokeWidth={2.5} className="text-white/70" />
+          </motion.button>
         </div>
       </div>
 
       {/* Content + tap zones - wrapped so tap zones don't overlap header */}
       <div className="flex-1 relative">
         {/* Content */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center px-6 gap-5">
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-8 gap-5">
           {current?.image && (
             <img
               src={current.image}
               alt=""
-              className="w-full max-h-72 object-cover rounded-3xl"
+              className="w-full max-h-72 object-cover rounded-3xl shadow-2xl"
             />
           )}
           {current?.text && (
-            <p className="text-[22px] font-medium text-center leading-snug">
+            <p className="text-[23px] font-medium text-center leading-snug tracking-tight"
+               style={{ letterSpacing: '-0.3px' }}>
               {current.text}
             </p>
           )}
@@ -396,13 +405,9 @@ function BottomSheet({ children, onClose, title }) {
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 280 }}
         onClick={e => e.stopPropagation()}
-        className="rounded-t-[28px] overflow-hidden"
+        className="rounded-t-[28px] overflow-hidden glass-card"
         style={{
-          background: 'rgba(20,20,22,0.97)',
-          backdropFilter: 'blur(40px)',
-          WebkitBackdropFilter: 'blur(40px)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          borderBottom: 'none',
+          background: 'rgba(20,20,22,0.96)',
           paddingBottom: 'max(env(safe-area-inset-bottom), 16px)',
         }}
       >

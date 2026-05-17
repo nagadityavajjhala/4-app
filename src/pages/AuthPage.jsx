@@ -4,6 +4,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfi
 import { auth } from '../lib/firebase'
 import toast from 'react-hot-toast'
 import { Eye, EyeOff } from 'lucide-react'
+import { ACCENT, ACCENT_SOFT, ACCENT_GLOW } from '../lib/accent'
 
 export default function AuthPage() {
   const [mode, setMode] = useState('signin')
@@ -38,51 +39,51 @@ export default function AuthPage() {
 
   return (
     <div className="h-full bg-black flex flex-col items-center justify-center px-6 overflow-hidden">
-      {/* Subtle background glow */}
+      {/* Ambient glow */}
       <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(255,69,58,0.07) 0%, transparent 70%)' }}
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(255,69,58,0.06) 0%, transparent 70%)' }}
       />
 
       {/* Logo */}
       <motion.div
-        initial={{ opacity: 0, y: -24 }}
+        initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         className="mb-10 text-center"
       >
         <div
-          className="text-white font-bold mb-2 select-none"
-          style={{ fontSize: 80, lineHeight: 1, letterSpacing: '-5px' }}
+          className="text-white font-bold mb-2 select-none tracking-tight"
+          style={{ fontSize: 72, lineHeight: 1, letterSpacing: '-4px' }}
         >
           4
         </div>
-        <p className="text-white/25 text-[13px] tracking-widest uppercase font-light">
+        <p className="text-white/20 text-[12px] tracking-[0.2em] uppercase font-light">
           private · encrypted
         </p>
       </motion.div>
 
-      {/* Form card */}
+      {/* Glass card */}
       <motion.div
-        initial={{ opacity: 0, y: 24 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.55, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-[340px]"
+        transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-[340px] glass-card rounded-3xl p-6"
       >
-        {/* Mode toggle pill */}
-        <div className="flex glass rounded-2xl p-1 mb-5">
+        {/* Mode toggle */}
+        <div className="flex glass-pill rounded-2xl p-1 mb-5">
           {['signin', 'signup'].map(m => (
             <button
               key={m}
               onClick={() => setMode(m)}
               className="flex-1 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 relative"
-              style={{ color: mode === m ? '#fff' : 'rgba(255,255,255,0.4)' }}
+              style={{ color: mode === m ? '#fff' : 'rgba(255,255,255,0.35)' }}
             >
               {mode === m && (
                 <motion.div
                   layoutId="mode-pill"
                   className="absolute inset-0 rounded-xl"
-                  style={{ background: 'rgba(255,255,255,0.12)' }}
+                  style={{ background: 'rgba(255,255,255,0.1)' }}
                   transition={{ type: 'spring', bounce: 0.2, duration: 0.35 }}
                 />
               )}
@@ -139,7 +140,7 @@ export default function AuthPage() {
             <button
               type="button"
               onClick={() => setShowPw(v => !v)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 active:text-white/60 transition-colors"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/25 active:text-white/50 transition-colors"
             >
               {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
@@ -150,7 +151,7 @@ export default function AuthPage() {
             disabled={loading}
             whileTap={{ scale: 0.97 }}
             className="w-full py-3.5 rounded-2xl text-[15px] font-semibold mt-1 transition-opacity disabled:opacity-50"
-            style={{ background: '#ff453a' }}
+            style={{ background: ACCENT, boxShadow: ACCENT_GLOW }}
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -168,7 +169,7 @@ export default function AuthPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
-        className="absolute bottom-10 text-white/15 text-[11px] text-center tracking-wide"
+        className="absolute bottom-10 text-white/12 text-[11px] text-center tracking-wide"
       >
         End-to-end encrypted · Just for us
       </motion.p>

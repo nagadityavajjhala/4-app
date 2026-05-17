@@ -1,9 +1,10 @@
 import React from 'react'
+import { ACCENT } from '../../lib/accent'
 
 export default function Avatar({ user, size = 40, showOnline = false, online = false }) {
   const initials = (user?.displayName || user?.username || '?')
     .split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-  const color = user?.avatarColor || '#ff453a'
+  const color = user?.avatarColor || ACCENT
 
   return (
     <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
@@ -20,8 +21,8 @@ export default function Avatar({ user, size = 40, showOnline = false, online = f
           style={{
             width: size,
             height: size,
-            background: `${color}1a`,
-            border: `1.5px solid ${color}50`,
+            background: `${color}15`,
+            border: `1px solid ${color}35`,
             fontSize: Math.max(10, size * 0.34),
             color,
           }}
@@ -32,7 +33,7 @@ export default function Avatar({ user, size = 40, showOnline = false, online = f
 
       {showOnline && (
         <div
-          className="absolute bottom-0 right-0 rounded-full border-[2px] border-black"
+          className="absolute bottom-0 right-0 rounded-full border-[2.5px] border-black"
           style={{
             width: Math.max(8, size * 0.27),
             height: Math.max(8, size * 0.27),

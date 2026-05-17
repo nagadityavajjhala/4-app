@@ -20,7 +20,7 @@ import {
   prepareImageForFirestore, prepareAudioForFirestore, getAudioMimeType,
 } from '../lib/chatMedia'
 import AppLogo from '../components/ui/AppLogo'
-import { ACCENT, ACCENT_SOFT, ACCENT_RGB } from '../lib/accent'
+import { ACCENT, ACCENT_SOFT, ACCENT_RGB, ACCENT_GLOW } from '../lib/accent'
 import { setTyping, subscribeTyping } from '../lib/typingPresence'
 import { getChatTheme, setChatTheme, CHAT_THEMES } from '../lib/chatThemes'
 import DailyPromptBanner from '../components/chat/DailyPromptBanner'
@@ -109,13 +109,13 @@ function ChatList() {
     <div className="h-full flex flex-col bg-black">
       {/* ── Header ── */}
       <div style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)' }}
-        className="px-5 pb-3">
+        className="px-5 pb-2.5">
         <div className="flex items-center justify-between mb-4 relative">
           <div className="w-[76px] flex justify-start">
-            <Btn icon={<UserPlus size={18} strokeWidth={1.8} />} onClick={() => setShowAdd(true)} />
+            <Btn icon={<UserPlus size={17} strokeWidth={1.8} />} onClick={() => setShowAdd(true)} />
           </div>
           <div className="absolute left-1/2 -translate-x-1/2">
-            <AppLogo size={32} />
+            <AppLogo size={30} />
           </div>
           <div className="w-[76px] flex justify-end">
             <AvatarBtn onClick={() => setShowProfile(true)} />
@@ -124,12 +124,18 @@ function ChatList() {
 
         {/* Search */}
         <div className="relative">
-          <Search size={15} strokeWidth={2} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
+          <Search size={15} strokeWidth={2} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none" />
           <input
             placeholder="Search"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="input-field pl-9 text-[14px] py-2.5"
+            className="w-full rounded-2xl pl-9 pr-4 py-2.5 text-white text-[14px] outline-none transition-all duration-200"
+            style={{
+              background: 'rgba(44,44,46,0.55)',
+              border: '0.5px solid rgba(255,255,255,0.06)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+            }}
           />
         </div>
       </div>
@@ -212,17 +218,17 @@ function ConvoRow({ convo, online, onPress }) {
 
   return (
     <motion.button
-      whileTap={{ scale: 0.98 }}
+      whileTap={{ scale: 0.97 }}
       onClick={onPress}
-      className="w-full flex items-center gap-3 py-3 px-3 rounded-2xl text-left transition-colors active:bg-white/[0.04]"
+      className="w-full flex items-center gap-3 py-3 px-3 rounded-2xl text-left transition-colors active:bg-white/[0.03]"
     >
       <Avatar user={other} size={52} showOnline online={online} />
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-baseline gap-2">
-          <span className="font-semibold text-[15px] truncate">{other?.displayName}</span>
-          <span className="text-[11px] text-white/30 flex-shrink-0">{fmtTime(ts)}</span>
+          <span className="font-semibold text-[15px] tracking-tight truncate">{other?.displayName}</span>
+          <span className="text-[11px] text-white/25 flex-shrink-0 font-medium">{fmtTime(ts)}</span>
         </div>
-        <p className="text-[13px] text-white/35 truncate mt-0.5">
+        <p className="text-[13px] text-white/30 truncate mt-0.5">
           {lastMessagePreview(convo.lastMessage)}
         </p>
       </div>
@@ -366,7 +372,13 @@ function AddContactModal({ onClose }) {
             placeholder="Search by username…"
             value={query_}
             onChange={onInput}
-            className="input-field pl-9 text-[14px]"
+            className="w-full rounded-2xl pl-9 pr-4 py-3 text-white text-[14px] outline-none transition-all duration-200"
+            style={{
+              background: 'rgba(44,44,46,0.55)',
+              border: '0.5px solid rgba(255,255,255,0.06)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+            }}
           />
         </div>
 
@@ -876,13 +888,13 @@ function ChatView() {
     <motion.div className="h-full flex flex-col" style={{ background: theme.bg }}>
       {/* ── Header ── */}
       <div
-        className="flex items-center gap-3 px-3 py-3 border-b"
+        className="flex items-center gap-2.5 px-3 py-3 border-b"
         style={{
           paddingTop: 'max(env(safe-area-inset-top), 12px)',
           background: theme.header,
-          backdropFilter: 'saturate(180%) blur(40px)',
-          WebkitBackdropFilter: 'saturate(180%) blur(40px)',
-          borderColor: 'rgba(255,255,255,0.07)',
+          backdropFilter: 'saturate(200%) blur(50px)',
+          WebkitBackdropFilter: 'saturate(200%) blur(50px)',
+          borderColor: 'rgba(255,255,255,0.06)',
         }}
       >
         <motion.button
@@ -898,10 +910,10 @@ function ChatView() {
           whileTap={{ scale: 0.88 }}
           onClick={clearChat}
           title="Clear chat"
-          className="w-9 h-9 flex items-center justify-center rounded-full text-white/50"
-          style={{ background: 'rgba(255,69,58,0.12)' }}
+          className="w-9 h-9 flex items-center justify-center rounded-full text-white/45"
+          style={{ background: 'rgba(255,69,58,0.1)' }}
         >
-          <Trash2 size={15} strokeWidth={1.8} />
+          <Trash2 size={14} strokeWidth={1.8} />
         </motion.button>
 
         <Avatar user={activeChatUser} size={36} />
@@ -963,15 +975,10 @@ function ChatView() {
                     type="button"
                     onClick={() => setReactionTarget(reactionTarget === msg.id ? null : msg.id)}
                     onDoubleClick={() => toggleReaction(msg, '👍')}
-                    className="rounded-2xl px-4 py-2.5 text-[14px] leading-relaxed"
+                    className={isMine ? 'bubble-sent' : 'bubble-received'}
                     style={{
-                      background: isMine ? theme.sent : theme.received,
-                      color: '#fff',
-                      borderRadius: '20px',
-                      borderBottomRightRadius: isMine ? '6px' : '20px',
-                      borderBottomLeftRadius: isMine ? '20px' : '6px',
+                      background: isMine ? undefined : theme.received,
                       textAlign: isMine ? 'right' : 'left',
-                      maxWidth: '75vw',
                       width: 'fit-content',
                     }}
                   >
@@ -1014,17 +1021,22 @@ function ChatView() {
                 )}
                 {reactionTarget === msg.id && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="flex gap-1 mt-1 px-1 py-1 rounded-full"
-                    style={{ background: 'rgba(44,44,46,0.95)' }}
+                    initial={{ opacity: 0, scale: 0.9, y: 4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    className="flex gap-0.5 mt-1 px-1.5 py-1 rounded-full"
+                    style={{
+                      background: 'rgba(44,44,46,0.92)',
+                      border: '0.5px solid rgba(255,255,255,0.06)',
+                      backdropFilter: 'blur(10px)',
+                      WebkitBackdropFilter: 'blur(10px)',
+                    }}
                   >
                     {REACTIONS.map(emoji => (
                       <button
                         key={emoji}
                         type="button"
                         onClick={() => toggleReaction(msg, emoji)}
-                        className="text-lg px-1 active:scale-110 transition-transform"
+                        className="text-lg px-1 hover:scale-110 active:scale-110 transition-transform duration-100"
                       >
                         {emoji}
                       </button>
@@ -1040,22 +1052,22 @@ function ChatView() {
 
       {/* ── Input bar ── */}
       <div
-        className="px-3 pt-2 flex flex-col gap-2 border-t"
+        className="px-3 pt-2.5 flex flex-col gap-2 border-t"
         style={{
           paddingBottom: 'max(env(safe-area-inset-bottom), 12px)',
-          background: 'rgba(0,0,0,0.8)',
-          backdropFilter: 'blur(30px)',
-          WebkitBackdropFilter: 'blur(30px)',
-          borderColor: 'rgba(255,255,255,0.07)',
+          background: 'rgba(10,10,12,0.85)',
+          backdropFilter: 'saturate(200%) blur(50px)',
+          WebkitBackdropFilter: 'saturate(200%) blur(50px)',
+          borderColor: 'rgba(255,255,255,0.06)',
         }}
       >
         {recording && (
-          <div className="flex items-center justify-between px-2 py-1.5 rounded-xl"
-            style={{ background: 'rgba(255,69,58,0.15)' }}>
-            <span className="text-[13px] text-red-400 font-medium">
-              Recording {recordSeconds}s…
+          <div className="flex items-center justify-between px-3 py-2 rounded-xl"
+            style={{ background: 'rgba(255,69,58,0.12)' }}>
+            <span className="text-[13px]" style={{ color: ACCENT }}>
+              ● Recording {recordSeconds}s
             </span>
-            <button type="button" onClick={cancelRecording} className="text-[12px] text-white/50 px-2">
+            <button type="button" onClick={cancelRecording} className="text-[12px] text-white/50 active:text-white/80 transition-colors px-2 py-1">
               Cancel
             </button>
           </div>
@@ -1076,14 +1088,19 @@ function ChatView() {
             whileTap={{ scale: 0.88 }}
             onClick={() => photoInputRef.current?.click()}
             disabled={sending || recording}
-            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-30"
-            style={{ background: 'rgba(255,255,255,0.08)' }}
+            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-30 transition-opacity"
+            style={{ background: 'rgba(255,255,255,0.06)' }}
           >
-            <ImagePlus size={18} strokeWidth={1.8} className="text-white/70" />
+            <ImagePlus size={18} strokeWidth={1.8} className="text-white/60" />
           </motion.button>
           <div
-            className="flex-1 rounded-[22px] px-4 py-2.5 flex items-end gap-2"
-            style={{ background: 'rgba(44,44,46,0.8)', border: '1px solid rgba(255,255,255,0.08)' }}
+            className="flex-1 rounded-[22px] px-3.5 py-2.5 flex items-end gap-2 transition-all duration-200"
+            style={{
+              background: 'rgba(44,44,46,0.75)',
+              border: '0.5px solid rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+            }}
           >
             <textarea
               ref={textareaRef}
@@ -1093,7 +1110,7 @@ function ChatView() {
               placeholder="Message"
               rows={1}
               disabled={recording}
-              className="flex-1 bg-transparent text-white text-[15px] resize-none outline-none placeholder-white/30 disabled:opacity-50"
+              className="flex-1 bg-transparent text-white text-[15px] resize-none outline-none placeholder-white/25 disabled:opacity-50"
               style={{ lineHeight: '1.45', maxHeight: 120 }}
             />
           </div>
@@ -1102,8 +1119,8 @@ function ChatView() {
               whileTap={{ scale: 0.88 }}
               onClick={sendMessage}
               disabled={sending || recording}
-              className="w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-30"
-              style={{ background: ACCENT }}
+              className="w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-30 transition-opacity"
+              style={{ background: ACCENT, boxShadow: ACCENT_GLOW }}
             >
               <Send size={16} strokeWidth={2} className="translate-x-[1px] -translate-y-[1px]" />
             </motion.button>
@@ -1116,10 +1133,10 @@ function ChatView() {
               onTouchStart={e => { e.preventDefault(); startRecording() }}
               onTouchEnd={e => { e.preventDefault(); stopRecording() }}
               disabled={sending}
-              className="w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: recording ? '#ff453a' : 'rgba(255,255,255,0.12)' }}
+              className="w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200"
+              style={{ background: recording ? ACCENT : 'rgba(255,255,255,0.08)' }}
             >
-              <Mic size={18} strokeWidth={1.8} className={recording ? 'text-white' : 'text-white/70'} />
+              <Mic size={18} strokeWidth={1.8} className={recording ? 'text-white' : 'text-white/60'} />
             </motion.button>
           )}
         </div>
@@ -1205,15 +1222,15 @@ function VoiceBubble({ url, duration, isMine }) {
     : 'Voice'
 
   return (
-    <button type="button" onClick={toggle} className="flex items-center gap-2 min-w-[120px]">
+    <button type="button" onClick={toggle} className="flex items-center gap-2.5 min-w-[120px]">
       <audio ref={audioRef} src={url} onEnded={() => setPlaying(false)} preload="metadata" />
       <span
         className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-        style={{ background: isMine ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)' }}
+        style={{ background: isMine ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)' }}
       >
-        {playing ? <Pause size={14} /> : <Play size={14} className="ml-0.5" />}
+        {playing ? <Pause size={13} /> : <Play size={13} className="ml-0.5" />}
       </span>
-      <span className="text-[14px]">{label}</span>
+      <span className="text-[14px] font-medium tracking-tight">{label}</span>
     </button>
   )
 }
