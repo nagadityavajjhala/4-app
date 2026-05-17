@@ -3,7 +3,7 @@ import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { ref, onDisconnect, set, onValue, serverTimestamp as rtServerTimestamp } from 'firebase/database'
-import { Toaster } from 'react-hot-toast'
+import toast, { Toaster } from 'react-hot-toast'
 import { auth, db, rtdb } from './lib/firebase'
 import { useStore } from './lib/store'
 import { getOrCreateKeypair, getPublicKeyB64 } from './lib/crypto'
@@ -79,35 +79,12 @@ export default function App() {
     return unsub
   }, [user, setOnlineUsers])
 
-  // Handle back gesture — prevent exit, navigate one screen back
+  // Handle back/gesture navigation — single back = navigate, double back root = exit
   useEffect(() => {
-    // Capacitor Android back button
-    let removeListener
-    try {
-      CapacitorApp.addListener('backButton', () => {
-        const s = useStore.getState()
-        if (s.callState) {
-          s.setCallState(null)
-        } else if (s.activeChatId) {
-          s.clearActiveChat()
-        } else if (s.activeTab !== 'chats') {
-          s.setActiveTab('chats')
-        } else {
-          CapacitorApp.exitApp()
-        }
-      }).then(h => { removeListener = h.remove })
-    } catch {}
-    return () => {
-      if (removeListener) removeListener()
-    }
-  }, [])
+    let lastBackRoot = 0
+    let removeFn
 
-  // Web browser back gesture — intercept popstate to prevent exit
-  useEffect(() => {
-    window.history.pushState(null, '')
-    const onPop = (e) => {
-      e.preventDefault()
-      window.history.pushState(null, '')
+    const handleBack = () => {
       const s = useStore.getState()
       if (s.callState) {
         s.setCallState(null)
@@ -115,10 +92,37 @@ export default function App() {
         s.clearActiveChat()
       } else if (s.activeTab !== 'chats') {
         s.setActiveTab('chats')
+      } else {
+        // On root screen — double press within 2s to exit
+        const now = Date.now()
+        if (now - lastBackRoot < 2000) {
+          try { CapacitorApp.exitApp() } catch {}
+        } else {
+          lastBackRoot = now
+          toast('Press back again to exit', {
+            className: 'text-white/50 text-[12px]',
+            style: { background: '#1a1a1a' },
+          })
+        }
       }
     }
-    window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
+
+    // Web: intercept browser back gesture
+    window.history.pushState(null, '')
+    window.addEventListener('popstate', (e) => {
+      e.preventDefault()
+      window.history.pushState(null, '')
+      handleBack()
+    })
+
+    // Capacitor Android: back button / gesture
+    try {
+      CapacitorApp.addListener('backButton', handleBack).then(h => { removeFn = h.remove })
+    } catch {}
+
+    return () => {
+      if (removeFn) removeFn()
+    }
   }, [])
 
   if (loading) return <LoadingScreen />
