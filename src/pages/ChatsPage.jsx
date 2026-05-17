@@ -977,9 +977,17 @@ function ChatView() {
                     onDoubleClick={() => toggleReaction(msg, '👍')}
                     className={isMine ? 'bubble-sent' : 'bubble-received'}
                     style={{
-                      background: isMine ? undefined : theme.received,
+                      background: isMine ? undefined : (theme.received || 'rgba(44,44,46,0.92)'),
+                      borderRadius: '22px',
+                      borderBottomRightRadius: isMine ? '4px' : '22px',
+                      borderBottomLeftRadius: isMine ? '22px' : '4px',
                       textAlign: isMine ? 'right' : 'left',
                       width: 'fit-content',
+                      maxWidth: '75vw',
+                      padding: '10px 16px',
+                      fontSize: 15,
+                      lineHeight: 1.55,
+                      color: '#fff',
                     }}
                   >
                     <MessageContent
