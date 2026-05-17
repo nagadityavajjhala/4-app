@@ -1,5 +1,11 @@
 {
   "appId": "com.aditya.fourapp",
   "appName": "4 App",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": true,
+      "providers": ["phone"]
+    }
+  }
 }

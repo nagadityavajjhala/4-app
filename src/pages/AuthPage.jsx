@@ -1,16 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
+import {
+  createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile,
+  RecaptchaVerifier, signInWithPhoneNumber,
+  PhoneAuthProvider, signInWithCredential,
+} from 'firebase/auth'
 import { auth } from '../lib/firebase'
 import toast from 'react-hot-toast'
 import { Eye, EyeOff, Smartphone, ArrowLeft } from 'lucide-react'
-import { ACCENT, ACCENT_SOFT, ACCENT_GLOW } from '../lib/accent'
+import { ACCENT, ACCENT_GLOW } from '../lib/accent'
 
 const AUTH_TABS = [
   { id: 'signin', label: 'Sign in' },
   { id: 'signup', label: 'Create' },
   { id: 'phone', label: 'Phone' },
 ]
+
+const isNative = typeof window !== 'undefined' && window.Capacitor?.isNative
 
 export default function AuthPage() {
   const [authMode, setAuthMode] = useState('signin')
@@ -27,6 +33,7 @@ export default function AuthPage() {
   const confirmRef = useRef(null)
   const verifierRef = useRef(null)
   const [verifierReady, setVerifierReady] = useState(false)
+  const verificationIdRef = useRef(null)
 
   useEffect(() => {
     if (authMode !== 'phone') {
@@ -39,22 +46,51 @@ export default function AuthPage() {
     }
 
     let cancelled = false
-    async function setup() {
-      try { verifierRef.current?.clear() } catch {}
-      const v = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-        callback: () => { console.log('reCAPTCHA solved') },
-        'expired-callback': () => { console.log('reCAPTCHA expired') },
-      })
-      await v.render()
-      if (!cancelled) {
-        verifierRef.current = v
-        setVerifierReady(true)
+
+    if (isNative) {
+      ;(async () => {
+        const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication')
+        if (cancelled) return
+        FirebaseAuthentication.addListener('phoneCodeSent', event => {
+          if (cancelled) return
+          verificationIdRef.current = event.verificationId
+          setOtpSent(true)
+          toast.success('OTP sent!')
+        })
+        FirebaseAuthentication.addListener('phoneVerificationCompleted', async event => {
+          if (cancelled) return
+          toast.success('Auto-verified!')
+          if (event.verificationCode) {
+            const cred = PhoneAuthProvider.credential(event.verificationCode, event.verificationCode)
+            await signInWithCredential(auth, cred)
+          }
+        })
+        FirebaseAuthentication.addListener('phoneVerificationFailed', event => {
+          if (cancelled) return
+          toast.error(event.message || 'Verification failed')
+        })
+      })()
+      // No extra setup needed on native — no reCAPTCHA
+      setVerifierReady(true)
+    } else {
+      async function setup() {
+        try { verifierRef.current?.clear() } catch {}
+        const v = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: () => {},
+          'expired-callback': () => {},
+        })
+        await v.render()
+        if (!cancelled) {
+          verifierRef.current = v
+          setVerifierReady(true)
+        }
       }
+      setup().catch(err => {
+        if (!cancelled) toast.error(err.code?.replace('auth/', '') || err.message || 'reCAPTCHA setup failed')
+      })
     }
-    setup().catch(err => {
-      if (!cancelled) toast.error(err.code?.replace('auth/', '') || err.message || 'reCAPTCHA setup failed')
-    })
+
     return () => { cancelled = true }
   }, [authMode])
 
@@ -64,17 +100,21 @@ export default function AuthPage() {
     const full = countryCode + cleaned
     setPhoneLoading(true)
     try {
-      const verifier = verifierRef.current
-      if (!verifier || !verifierReady) { toast.error('reCAPTCHA not ready, please wait'); return }
-      const confirmation = await signInWithPhoneNumber(auth, full, verifier)
-      confirmRef.current = confirmation
-      setOtpSent(true)
-      toast.success('OTP sent!')
+      if (isNative) {
+        const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication')
+        await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber: full, timeout: 60 })
+      } else {
+        const verifier = verifierRef.current
+        if (!verifier || !verifierReady) { toast.error('reCAPTCHA not ready, please wait'); return }
+        const confirmation = await signInWithPhoneNumber(auth, full, verifier)
+        confirmRef.current = confirmation
+        setOtpSent(true)
+        toast.success('OTP sent!')
+      }
     } catch (err) {
       console.error('sendOtp error:', err)
       try { verifierRef.current?.reset() } catch {}
-      const code = err.code?.replace('auth/', '') || ''
-      toast.error(code || err.message || 'Something went wrong')
+      toast.error(err.code?.replace('auth/', '') || err.message || 'Something went wrong')
     } finally {
       setPhoneLoading(false)
     }
@@ -105,8 +145,14 @@ export default function AuthPage() {
     if (!otp.trim()) { toast.error('Enter the OTP'); return }
     setPhoneLoading(true)
     try {
-      await confirmRef.current.confirm(otp.trim())
-      // onAuthStateChanged in App.jsx handles profile creation
+      if (isNative) {
+        const vid = verificationIdRef.current
+        if (!vid) { toast.error('No verification ID. Resend OTP.'); return }
+        const credential = PhoneAuthProvider.credential(vid, otp.trim())
+        await signInWithCredential(auth, credential)
+      } else {
+        await confirmRef.current.confirm(otp.trim())
+      }
       toast.success('Signed in!')
     } catch (err) {
       toast.error(err.code?.replace('auth/', '') || err.message || 'Invalid OTP')
@@ -162,7 +208,7 @@ export default function AuthPage() {
                 />
               )}
               <span className="relative z-10 flex items-center justify-center gap-1.5">
-                {tab.id === 'phone' ? <Smartphone size={13} /> : tab.id === 'signin' ? null : null}
+                {tab.id === 'phone' ? <Smartphone size={13} /> : null}
                 {tab.label}
               </span>
             </button>
@@ -315,8 +361,7 @@ export default function AuthPage() {
         )}
       </motion.div>
 
-      {/* reCAPTCHA container — invisible */}
-      <div id="recaptcha-container" />
+      {!isNative && <div id="recaptcha-container" />}
 
       <motion.p
         initial={{ opacity: 0 }}
