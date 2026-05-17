@@ -25,31 +25,24 @@ export default function AuthPage() {
   const [otpSent, setOtpSent]   = useState(false)
   const [phoneLoading, setPhoneLoading] = useState(false)
   const confirmRef = useRef(null)
+  const verifierRef = useRef(null)
 
-  // Clean up old reCAPTCHA on unmount
-  useEffect(() => {
-    return () => {
-      try { window.recaptchaVerifier?.clear() } catch {}
-      delete window.recaptchaVerifier
-    }
-  }, [])
-
+  // Create RecaptchaVerifier once when phone mode is entered
   useEffect(() => {
     if (authMode !== 'phone') {
       setOtp('')
       setOtpSent(false)
+      // Clear the verifier when leaving phone mode
+      try { verifierRef.current?.clear() } catch {}
+      verifierRef.current = null
+      return
+    }
+    if (!verifierRef.current) {
+      verifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+      })
     }
   }, [authMode])
-
-  async function getRecaptcha() {
-    // Build a fresh one each time
-    try { window.recaptchaVerifier?.clear() } catch {}
-    const v = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      size: 'invisible',
-    })
-    window.recaptchaVerifier = v
-    return v
-  }
 
   async function handleEmailSubmit(e) {
     e.preventDefault()
@@ -81,12 +74,15 @@ export default function AuthPage() {
     const full = countryCode + cleaned
     setPhoneLoading(true)
     try {
-      const verifier = await getRecaptcha()
+      const verifier = verifierRef.current
+      if (!verifier) { toast.error('reCAPTCHA not ready. Try again.'); return }
       const confirmation = await signInWithPhoneNumber(auth, full, verifier)
       confirmRef.current = confirmation
       setOtpSent(true)
       toast.success('OTP sent!')
     } catch (err) {
+      // Reset reCAPTCHA for next attempt instead of recreating
+      try { verifierRef.current?.reset() } catch {}
       const msg = (err.message || '')
         .replace('Firebase: ', '')
         .replace(/ \(auth\/.*\)\.?/, '')
