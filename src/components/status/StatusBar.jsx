@@ -58,8 +58,7 @@ export default function StatusBar() {
     <>
       <div className="px-4 pb-3">
         <div
-          className="flex gap-3 overflow-x-auto pb-0.5"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          className="flex gap-3 flex-wrap pb-0.5"
         >
           {/* My status button */}
           <StatusRing

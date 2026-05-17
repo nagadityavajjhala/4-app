@@ -3,11 +3,13 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useStore } from '../lib/store'
 import ChatsPage from './ChatsPage'
 import NewsPage from './NewsPage'
+import GamesPage from './GamesPage'
 import TabBar from '../components/ui/TabBar'
 import CallOverlay from '../components/calling/CallOverlay'
 import CallListener from '../components/calling/CallListener'
 
 const tabs = {
+  play: GamesPage,
   chats: ChatsPage,
   news: NewsPage,
 }

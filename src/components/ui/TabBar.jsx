@@ -1,10 +1,11 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { MessageCircle, Newspaper } from 'lucide-react'
+import { MessageCircle, Newspaper, Gamepad2 } from 'lucide-react'
 import { useStore } from '../../lib/store'
 import { ACCENT, ACCENT_SOFT } from '../../lib/accent'
 
 const TABS = [
+  { id: 'play',  icon: Gamepad2,     label: 'Play'  },
   { id: 'chats', icon: MessageCircle, label: 'Chats' },
   { id: 'news',  icon: Newspaper,     label: 'News'  },
 ]
@@ -16,7 +17,7 @@ export default function TabBar() {
 
   return (
     <div className="relative z-20 glass-nav">
-      <div className="flex items-center justify-around px-6 pt-1.5 pb-safe">
+      <div className="flex items-center justify-around px-4 pt-1.5 pb-safe">
         {TABS.map(({ id, icon: Icon, label }) => {
           const active = activeTab === id
           return (
@@ -25,7 +26,7 @@ export default function TabBar() {
               onClick={() => setActiveTab(id)}
               whileTap={{ scale: 0.9 }}
               transition={{ duration: 0.1 }}
-              className="flex flex-col items-center gap-0.5 py-2 px-8 relative"
+              className="flex flex-col items-center gap-0.5 py-2 px-6 relative"
             >
               {active && (
                 <motion.div

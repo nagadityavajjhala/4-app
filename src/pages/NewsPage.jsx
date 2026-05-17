@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { RefreshCw, Clock, ExternalLink, ChevronLeft } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ACCENT, ACCENT_SOFT } from '../lib/accent'
 import { fetchBBCNews, BBC_CATEGORIES, getCachedNewsAge } from '../lib/bbcNews'
 
-const spring = { type: 'spring', stiffness: 260, damping: 24, mass: 0.8 }
+const spring = { type: 'spring', stiffness: 300, damping: 26, mass: 0.7 }
 
 export default function NewsPage() {
   const [articles, setArticles]     = useState([])
@@ -29,7 +29,7 @@ export default function NewsPage() {
       setFromCache(before && after === before)
     } catch (err) {
       console.error('News fetch:', err)
-      setError('Could not load BBC News. Pull to refresh when you have connection.')
+      setError('Could not load BBC News.')
       setArticles([])
     } finally {
       setLoading(false)
@@ -41,34 +41,32 @@ export default function NewsPage() {
 
   return (
     <div className="h-full flex flex-col bg-black overflow-hidden">
-      {/* ── Header ── */}
       <div
-        style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)' }}
-        className="px-5 pb-3 flex-shrink-0"
+        style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}
+        className="px-4 pb-2 flex-shrink-0"
       >
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...spring, delay: 0.05 }}
-          className="flex items-center justify-between mb-4"
+          className="flex items-center justify-between mb-3"
         >
-          <span className="section-title">News</span>
+          <span className="text-[24px] font-bold tracking-tight">News</span>
           <motion.button
             whileTap={{ scale: 0.85 }}
-            whileHover={{ scale: 1.05 }}
             onClick={() => fetchNews(category, true)}
-            className="w-9 h-9 rounded-full flex items-center justify-center"
+            className="w-8 h-8 rounded-full flex items-center justify-center"
             style={{ background: 'rgba(255,255,255,0.08)' }}
           >
-            <RefreshCw size={16} strokeWidth={1.8} className={refreshing ? 'animate-spin' : ''} />
+            <RefreshCw size={14} strokeWidth={1.8} className={refreshing ? 'animate-spin' : ''} />
           </motion.button>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.12 }}
-          className="flex gap-2 overflow-x-auto pb-0.5"
+          transition={{ delay: 0.1 }}
+          className="flex gap-1.5 overflow-x-auto pb-0.5"
           style={{ scrollbarWidth: 'none' }}
         >
           {BBC_CATEGORIES.map((cat, i) => (
@@ -76,10 +74,10 @@ export default function NewsPage() {
               key={cat}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 + i * 0.04, ...spring }}
+              transition={{ delay: 0.12 + i * 0.03, ...spring }}
               onClick={() => setCategory(cat)}
               whileTap={{ scale: 0.92 }}
-              className="flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors duration-200 select-none"
+              className="flex-shrink-0 px-3 py-1 rounded-full text-[12px] font-medium transition-colors duration-200 select-none"
               style={{
                 background: category === cat ? '#fff' : 'rgba(255,255,255,0.08)',
                 color: category === cat ? '#000' : 'rgba(255,255,255,0.5)',
@@ -91,25 +89,13 @@ export default function NewsPage() {
         </motion.div>
       </div>
 
-      <div className="px-5 mb-2 flex-shrink-0">
-        <motion.span
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="text-[11px] text-white/25"
-        >
-          {error || (fromCache ? 'Cached BBC News (offline) · Tap to read' : 'Live from BBC News · Tap any story')}
-        </motion.span>
-      </div>
-
-      {/* ── Bento Grid ── */}
-      <div className="flex-1 overflow-y-auto px-4 pb-6">
+      <div className="flex-1 overflow-y-auto px-3 pb-5">
         {loading ? (
-          <SkeletonGrid />
+          <CompactSkeleton />
         ) : error ? (
           <ErrorState onRetry={() => fetchNews(category, true)} />
         ) : (
-          <BentoGrid articles={articles} onOpen={(a) => setSelected(a)} />
+          <CompactBentoGrid articles={articles} onOpen={(a) => setSelected(a)} />
         )}
       </div>
 
@@ -122,45 +108,42 @@ export default function NewsPage() {
   )
 }
 
-// ── Bento Grid ───────────────────────────────────────────────
-function BentoGrid({ articles, onOpen }) {
-  const [first, second, third, ...rest] = articles
+// ── Compact Bento Grid ───────────────────────────────────────
+function CompactBentoGrid({ articles, onOpen }) {
+  if (articles.length === 0) {
+    return <p className="text-center text-white/30 text-[13px] pt-12">No stories right now</p>
+  }
+
+  // Take first 12 articles max, chunk into rows of 3
+  const chunks = []
+  for (let i = 0; i < Math.min(articles.length, 12); i += 3) {
+    chunks.push(articles.slice(i, i + 3))
+  }
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Hero card — full width */}
-      {first && <HeroCard article={first} onOpen={onOpen} />}
-
-      {/* Second row — 2 columns: second large, third small */}
-      {(second || third) && (
-        <div className="flex gap-3">
-          {second && (
-            <div className="flex-1 min-w-0">
-              <LargeCard article={second} onOpen={onOpen} />
-            </div>
-          )}
-          {third && (
-            <div className="w-[120px] flex-shrink-0">
-              <SmallCard article={third} onOpen={onOpen} />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Remaining — 2-column grid */}
-      {rest.length > 0 && (
-        <div className="grid grid-cols-2 gap-3">
-          {rest.map((article, i) => (
-            <GridCard key={article.url + i} article={article} index={i} onOpen={onOpen} />
-          ))}
-        </div>
-      )}
-
-      {articles.length === 0 && (
-        <p className="text-center text-white/30 text-[13px] pt-12">
-          No stories right now
-        </p>
-      )}
+    <div className="flex flex-col gap-2.5">
+      {chunks.map((row, ri) => (
+        <motion.div
+          key={ri}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: ri * 0.06, ...spring }}
+          className="flex gap-2.5"
+        >
+          {row.map((article, ci) => {
+            const isFirst = ri === 0 && ci === 0
+            return (
+              <CompactCard
+                key={article.url + ci}
+                article={article}
+                index={ri * 3 + ci}
+                isHero={isFirst}
+                onOpen={onOpen}
+              />
+            )
+          })}
+        </motion.div>
+      ))}
     </div>
   )
 }
@@ -170,164 +153,53 @@ function timeAgo(dateStr) {
   catch { return '' }
 }
 
-// ── Hero Card ───────────────────────────────────────────────
-function HeroCard({ article, onOpen }) {
+// ── Compact Card ─────────────────────────────────────────────
+function CompactCard({ article, index, isHero, onOpen }) {
   const ts = article.publishedAt ? timeAgo(article.publishedAt) : null
 
   return (
     <motion.button
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ ...spring, stiffness: 200 }}
-      whileTap={{ scale: 0.97 }}
-      whileHover={{ scale: 1.01 }}
+      transition={{ delay: Math.min(0.04 * index, 0.35), ...spring }}
+      whileTap={{ scale: 0.95 }}
       onClick={() => onOpen(article)}
-      className="w-full rounded-3xl overflow-hidden text-left relative"
-      style={{ background: 'rgba(44,44,46,0.6)', aspectRatio: '16/9' }}
+      className="flex-1 min-w-0 rounded-2xl overflow-hidden text-left relative"
+      style={{
+        background: 'rgba(44,44,46,0.5)',
+        aspectRatio: isHero ? '16/10' : '1/1.15',
+      }}
     >
       {article.image && (
         <img
           src={article.image}
           alt=""
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full"
+          style={{ objectFit: 'cover', imageRendering: 'auto' }}
           loading="lazy"
         />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 p-4">
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: ACCENT }}>
+      <div
+        className="absolute inset-0"
+        style={{
+          background: isHero
+            ? 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 45%, transparent 70%)'
+            : 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 50%, transparent 75%)',
+        }}
+      />
+      <div className="absolute bottom-0 left-0 right-0 p-2.5">
+        <div className="flex items-center gap-1 mb-0.5">
+          <span className="text-[7px] font-semibold uppercase tracking-widest" style={{ color: ACCENT }}>
             BBC
           </span>
           {ts && (
-            <>
-              <span className="text-white/20 text-[10px]">·</span>
-              <span className="flex items-center gap-0.5 text-[10px] text-white/40">
-                <Clock size={9} />
-                {ts}
-              </span>
-            </>
+            <span className="text-[7px] text-white/35 ml-auto">{ts}</span>
           )}
         </div>
-        <h3 className="font-bold text-[16px] leading-tight text-white line-clamp-2">
-          {article.title}
-        </h3>
-        {article.description && (
-          <p className="text-[12px] text-white/50 line-clamp-1 mt-1">
-            {article.description}
-          </p>
-        )}
-      </div>
-    </motion.button>
-  )
-}
-
-// ── Large Card (flexible) ────────────────────────────────────
-function LargeCard({ article, onOpen }) {
-  const ts = article.publishedAt ? timeAgo(article.publishedAt) : null
-
-  return (
-    <motion.button
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ ...spring, delay: 0.06 }}
-      whileTap={{ scale: 0.97 }}
-      onClick={() => onOpen(article)}
-      className="w-full rounded-2xl overflow-hidden text-left relative"
-      style={{ background: 'rgba(44,44,46,0.5)', aspectRatio: '4/5' }}
-    >
-      {article.image && (
-        <img
-          src={article.image}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-          loading="lazy"
-        />
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 p-3">
-        <span className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: ACCENT }}>
-          BBC
-        </span>
-        {ts && (
-          <span className="text-[9px] text-white/40 ml-1.5">{ts}</span>
-        )}
-        <h3 className="font-semibold text-[13px] leading-tight text-white mt-1 line-clamp-3">
-          {article.title}
-        </h3>
-      </div>
-    </motion.button>
-  )
-}
-
-// ── Small Card ──────────────────────────────────────────────
-function SmallCard({ article, onOpen }) {
-  const ts = article.publishedAt ? timeAgo(article.publishedAt) : null
-
-  return (
-    <motion.button
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ ...spring, delay: 0.1 }}
-      whileTap={{ scale: 0.95 }}
-      onClick={() => onOpen(article)}
-      className="w-full rounded-2xl overflow-hidden text-left relative"
-      style={{ background: 'rgba(44,44,46,0.5)', aspectRatio: '3/5' }}
-    >
-      {article.image && (
-        <img
-          src={article.image}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-          loading="lazy"
-        />
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 p-2.5">
-        <span className="text-[8px] font-semibold uppercase tracking-wide" style={{ color: ACCENT }}>
-          BBC
-        </span>
-        <h3 className="font-semibold text-[11px] leading-tight text-white mt-0.5 line-clamp-3">
-          {article.title}
-        </h3>
-      </div>
-    </motion.button>
-  )
-}
-
-// ── Grid Card (2-col grid) ──────────────────────────────────
-function GridCard({ article, index, onOpen }) {
-  const ts = article.publishedAt ? timeAgo(article.publishedAt) : null
-
-  return (
-    <motion.button
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(0.15 + index * 0.03, 0.4), ...spring }}
-      whileTap={{ scale: 0.95 }}
-      onClick={() => onOpen(article)}
-      className="rounded-2xl overflow-hidden text-left relative"
-      style={{ background: 'rgba(44,44,46,0.5)', aspectRatio: '1/1.2' }}
-    >
-      {article.image && (
-        <img
-          src={article.image}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-          loading="lazy"
-        />
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 p-2.5">
-        <div className="flex items-center gap-1">
-          <span className="text-[8px] font-semibold uppercase tracking-wide" style={{ color: ACCENT }}>
-            BBC
-          </span>
-          {ts && (
-            <span className="text-[8px] text-white/35">{ts}</span>
-          )}
-        </div>
-        <h3 className="font-semibold text-[11px] leading-snug text-white mt-0.5 line-clamp-3">
+        <h3
+          className="font-semibold text-white leading-tight"
+          style={{ fontSize: isHero ? 14 : 11, lineHeight: 1.3 }}
+        >
           {article.title}
         </h3>
       </div>
@@ -364,7 +236,6 @@ function ArticleReader({ article, onClose }) {
       >
         <motion.button
           whileTap={{ scale: 0.85 }}
-          whileHover={{ scale: 1.05 }}
           onClick={onClose}
           className="w-9 h-9 rounded-full flex items-center justify-center"
           style={{ background: 'rgba(255,255,255,0.08)' }}
@@ -420,20 +291,16 @@ function ArticleReader({ article, onClose }) {
   )
 }
 
-// ── Skeleton ────────────────────────────────────────────────
-function SkeletonGrid() {
+function CompactSkeleton() {
   return (
-    <div className="flex flex-col gap-3">
-      <div className="w-full rounded-3xl skeleton" style={{ aspectRatio: '16/9' }} />
-      <div className="flex gap-3">
-        <div className="flex-1 rounded-2xl skeleton" style={{ aspectRatio: '4/5' }} />
-        <div className="w-[120px] rounded-2xl skeleton" style={{ aspectRatio: '3/5' }} />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        {[1, 2, 3, 4].map(i => (
-          <div key={i} className="rounded-2xl skeleton" style={{ aspectRatio: '1/1.2' }} />
-        ))}
-      </div>
+    <div className="flex flex-col gap-2.5 pt-1">
+      {[1, 2, 3].map(r => (
+        <div key={r} className="flex gap-2.5">
+          {[1, 2, 3].map(c => (
+            <div key={c} className="flex-1 rounded-2xl skeleton" style={{ aspectRatio: '1/1.15' }} />
+          ))}
+        </div>
+      ))}
     </div>
   )
 }
@@ -445,7 +312,7 @@ function ErrorState({ onRetry }) {
       animate={{ opacity: 1 }}
       className="flex flex-col items-center justify-center py-16 gap-4 px-6 text-center"
     >
-      <p className="text-white/40 text-[14px]">Could not load BBC News. Pull to refresh when you have connection.</p>
+      <p className="text-white/40 text-[14px]">Could not load BBC News.</p>
       <motion.button
         whileTap={{ scale: 0.92 }}
         onClick={onRetry}

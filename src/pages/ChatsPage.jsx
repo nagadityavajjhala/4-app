@@ -21,6 +21,7 @@ import {
 } from '../lib/chatMedia'
 import AppLogo from '../components/ui/AppLogo'
 import { ACCENT, ACCENT_SOFT, ACCENT_RGB, ACCENT_GLOW } from '../lib/accent'
+import { isUsernameAvailable, getCooldownDays, isReservedFor, RESERVED_USERNAMES } from '../lib/usernameManager'
 import { setTyping, subscribeTyping } from '../lib/typingPresence'
 import { getChatTheme, setChatTheme, CHAT_THEMES } from '../lib/chatThemes'
 import DailyPromptBanner from '../components/chat/DailyPromptBanner'
@@ -429,15 +430,19 @@ function AddContactModal({ onClose }) {
 // ─────────────────────────────────────────────────────────────
 function ProfileModal({ onClose }) {
   const { user, userProfile, setUserProfile } = useStore()
-  const [name, setName]   = useState(userProfile?.displayName || '')
-  const [photo, setPhoto] = useState(userProfile?.photoURL || null)
+  const [name, setName]     = useState(userProfile?.displayName || '')
+  const [photo, setPhoto]   = useState(userProfile?.photoURL || null)
+  const [username, setUsername] = useState(userProfile?.username || '')
   const [saving, setSaving] = useState(false)
+  const [checking, setChecking] = useState(false)
   const fileRef = useRef(null)
+
+  const cooldown = getCooldownDays(userProfile?.usernameChangedAt)
+  const canChangeUsername = cooldown === 0
 
   function pickPhoto(e) {
     const file = e.target.files?.[0]
     if (!file) return
-    // Compress to max 200px, store as base64 (no Firebase Storage needed)
     const img   = new Image()
     const url   = URL.createObjectURL(file)
     img.onload  = () => {
@@ -458,23 +463,61 @@ function ProfileModal({ onClose }) {
     if (!name.trim()) { toast.error('Name cannot be empty'); return }
     setSaving(true)
     try {
+      const newName = name.trim()
+      const updates = { displayName: newName, photoURL: photo }
+
+      // Handle username change
+      const newUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '')
+      if (newUsername && newUsername !== userProfile?.username) {
+        if (!canChangeUsername) {
+          toast.error(`Can't change username yet — ${cooldown} day${cooldown > 1 ? 's' : ''} remaining`)
+          setSaving(false)
+          return
+        }
+        if (newUsername.length < 2) {
+          toast.error('Username must be at least 2 characters')
+          setSaving(false)
+          return
+        }
+        // Check reserved
+        const isReserved = Object.values(RESERVED_USERNAMES).some(
+          n => n.toLowerCase() === newUsername
+        )
+        if (isReserved && !isReservedFor(newUsername, user?.email)) {
+          toast.error('That username is reserved')
+          setSaving(false)
+          return
+        }
+        // Check availability
+        const available = await isUsernameAvailable(newUsername, user.uid)
+        if (!available) {
+          toast.error('Username already taken')
+          setSaving(false)
+          return
+        }
+        updates.username = newUsername
+        updates.usernameChangedAt = serverTimestamp()
+      }
+
       const profileRef = doc(db, 'users', user.uid)
-      const updates    = { displayName: name.trim(), photoURL: photo }
       await setDoc(profileRef, updates, { merge: true })
       setUserProfile({ ...userProfile, ...updates })
       toast.success('Profile updated')
       onClose()
-    } catch {
+    } catch (err) {
+      console.error(err)
       toast.error('Could not save')
     } finally {
       setSaving(false)
     }
   }
 
+  const usernameError = username.trim() && username.length < 2 ? 'Min 2 characters' : null
+
   return (
     <Sheet onClose={onClose} title="Profile">
       <div className="px-5 pb-6 flex flex-col items-center gap-5">
-        {/* Photo picker */}
+        {/* Photo */}
         <div className="relative">
           <Avatar user={{ ...userProfile, photoURL: photo }} size={88} />
           <button
@@ -487,12 +530,7 @@ function ProfileModal({ onClose }) {
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickPhoto} />
         </div>
 
-        {/* Username badge */}
-        <div className="px-4 py-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }}>
-          <span className="text-[12px] text-white/50 font-mono">@{userProfile?.username}</span>
-        </div>
-
-        {/* Name */}
+        {/* Display name */}
         <div className="w-full">
           <label className="text-[11px] text-white/35 uppercase tracking-wider mb-1.5 block pl-1">
             Display name
@@ -505,9 +543,45 @@ function ProfileModal({ onClose }) {
           />
         </div>
 
+        {/* Username */}
+        <div className="w-full">
+          <label className="text-[11px] text-white/35 uppercase tracking-wider mb-1.5 block pl-1">
+            Username
+          </label>
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25 text-[14px] font-mono">@</span>
+            <input
+              value={username}
+              onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+              className="w-full rounded-2xl pl-8 pr-4 py-3 text-white text-[14px] font-mono outline-none transition-all duration-200"
+              placeholder="username"
+              style={{
+                background: 'rgba(44,44,46,0.55)',
+                border: `0.5px solid ${usernameError ? 'rgba(255,69,58,0.4)' : 'rgba(255,255,255,0.06)'}`,
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between mt-1.5 px-1">
+            {usernameError ? (
+              <span className="text-[10px]" style={{ color: ACCENT }}>{usernameError}</span>
+            ) : (
+              <span className="text-[10px] text-white/20">
+                Letters, numbers, underscores only
+              </span>
+            )}
+            {!canChangeUsername && (
+              <span className="text-[10px] text-white/25">
+                Cooldown: {cooldown}d
+              </span>
+            )}
+          </div>
+        </div>
+
         <button
           onClick={save}
-          disabled={saving}
+          disabled={saving || !!usernameError}
           className="w-full py-3.5 rounded-2xl text-[15px] font-semibold disabled:opacity-50 transition-opacity"
           style={{ background: ACCENT }}
         >
