@@ -7,19 +7,23 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && gh-pages -d dist"
+    "deploy": "npm run build && gh-pages -d dist",
+    "build:capacitor": "CAPACITOR_BUILD=true npm run build && npx cap copy"
   },
   "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.0",
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
+    "date-fns": "^3.6.0",
     "firebase": "^10.13.0",
     "framer-motion": "^11.3.24",
     "lucide-react": "^0.428.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hot-toast": "^2.4.1",
+    "react-router-dom": "^6.26.0",
     "tweetnacl": "^1.0.3",
     "tweetnacl-util": "^0.15.1",
-    "date-fns": "^3.6.0",
-    "react-hot-toast": "^2.4.1",
     "zustand": "^4.5.5"
   },
   "devDependencies": {

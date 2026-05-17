@@ -12,8 +12,7 @@ const BBC_FEEDS = {
 
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  // GitHub Pages project site: https://<user>.github.io/4-app/
-  base: mode === 'production' ? '/4-app/' : '/',
+  base: process.env.CAPACITOR_BUILD ? '/' : (mode === 'production' ? '/4-app/' : '/'),
   build: {
     outDir: 'dist',
     sourcemap: false,

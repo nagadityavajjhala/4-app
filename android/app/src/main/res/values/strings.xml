@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">4 App</string>
+    <string name="title_activity_main">4 App</string>
+    <string name="package_name">com.aditya.fourapp</string>
+    <string name="custom_url_scheme">com.aditya.fourapp</string>
+</resources>
