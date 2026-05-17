@@ -21,11 +21,11 @@ export function WordleGameMessage({ msg, isMine, onGuess }) {
   }
 
   return (
-    <motion.div className="p-3 min-w-[200px]">
+    <motion.div className="p-3 min-w-[200px] flex flex-col items-center">
       <p className="text-[12px] font-semibold mb-2 opacity-80">🎮 Wordle</p>
-      <motion.div className="space-y-1">
+      <motion.div className="space-y-1 flex flex-col items-center">
         {guesses.map((g, i) => (
-          <motion.div key={i} className="flex gap-1">
+          <motion.div key={i} className="flex gap-1 justify-center">
             {g.word.split('').map((ch, j) => (
               <motion.span
                 key={j}
@@ -45,13 +45,13 @@ export function WordleGameMessage({ msg, isMine, onGuess }) {
         <p className="text-[12px] mt-2 text-white/50">The word was {word}</p>
       )}
       {!done && (
-        <motion.div className="flex gap-1 mt-2">
+        <motion.div className="flex gap-1 mt-2 w-full max-w-[160px]">
           <input
             value={guess}
             onChange={e => setGuess(e.target.value.slice(0, 5).toUpperCase())}
             maxLength={5}
             placeholder="Guess"
-            className="flex-1 rounded-lg px-2 py-1 text-[13px] bg-black/30 outline-none uppercase"
+            className="flex-1 rounded-lg px-2 py-1 text-[13px] bg-black/30 outline-none uppercase text-center"
           />
           <button type="button" onClick={submit} className="px-2 py-1 rounded-lg text-[12px] font-semibold"
             style={{ background: ACCENT }}>
@@ -69,10 +69,10 @@ export function TriviaGameMessage({ msg, isMine, onAnswer, viewerUid }) {
   const done = status === 'done'
 
   return (
-    <motion.div className="p-3 min-w-[220px] max-w-[260px]">
+    <motion.div className="p-3 min-w-[220px] max-w-[260px] flex flex-col items-center">
       <p className="text-[12px] font-semibold mb-2 opacity-80">🎮 Trivia</p>
-      <p className="text-[14px] mb-3 leading-snug">{question}</p>
-      <motion.div className="space-y-1.5">
+      <p className="text-[14px] mb-3 leading-snug text-center">{question}</p>
+      <motion.div className="space-y-1.5 w-full">
         {options?.map((opt, i) => {
           const picked = Object.values(picks).includes(i)
           const showResult = done && (i === answer || picked)

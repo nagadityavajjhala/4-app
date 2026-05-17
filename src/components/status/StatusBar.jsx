@@ -278,8 +278,7 @@ function StatusViewer({ group, onClose }) {
     try {
       await deleteDoc(doc(db, 'statuses', current.id))
       toast.success('Status deleted')
-      if (total <= 1) onClose()
-      else if (idx >= total - 1) setIdx(i => Math.max(0, i - 1))
+      onClose()
     } catch {
       toast.error('Could not delete status')
     } finally {

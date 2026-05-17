@@ -574,12 +574,12 @@ function ChatView() {
       pendingRef.current = pendingRef.current.filter(p => !serverClientIds.has(p.clientId))
       const merged = [...serverMsgs, ...pendingRef.current]
       merged.sort((a, b) => {
-        const ta = a.createdAt?.toMillis?.() ?? a._localTime ?? 0
-        const tb = b.createdAt?.toMillis?.() ?? b._localTime ?? 0
+        const ta = a.clientTimestamp ?? a.createdAt?.toMillis?.() ?? a._localTime ?? 0
+        const tb = b.clientTimestamp ?? b.createdAt?.toMillis?.() ?? b._localTime ?? 0
         return ta - tb
       })
       setMessages(merged)
-      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'auto' }))
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'instant' }))
     })
     return unsub
   }, [activeChatId])
@@ -699,6 +699,7 @@ function ChatView() {
       senderId: user.uid,
       senderName: userProfile?.displayName || '',
       createdAt: serverTimestamp(),
+      clientTimestamp: Date.now(),
     })
     batch.set(
       doc(db, 'conversations', activeChatId),
@@ -938,7 +939,7 @@ function ChatView() {
                     type="button"
                     onClick={() => setReactionTarget(reactionTarget === msg.id ? null : msg.id)}
                     onDoubleClick={() => toggleReaction(msg, '👍')}
-                    className="text-left rounded-2xl px-4 py-2.5 max-w-[78%] text-[15px] leading-relaxed"
+                    className="text-center rounded-2xl px-4 py-2.5 max-w-[78%] text-[15px] leading-relaxed"
                     style={{
                       background: isMine ? theme.sent : theme.received,
                       color: '#fff',

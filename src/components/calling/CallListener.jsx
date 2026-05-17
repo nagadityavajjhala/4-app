@@ -4,6 +4,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { incomingCallsRef } from '../../lib/callSignaling'
 import { useStore } from '../../lib/store'
+import { startRinging, stopRinging } from '../../lib/ringtone'
 
 const profileCache = new Map()
 
@@ -19,8 +20,16 @@ async function getCallerProfile(uid) {
 /** Watches RTDB for ringing calls (onValue catches existing + new calls). */
 export default function CallListener() {
   const user = useStore(s => s.user)
+  const callState = useStore(s => s.callState)
   const setCallState = useStore(s => s.setCallState)
   const ringingRef = useRef(new Set())
+
+  // Stop ringing when call state leaves 'incoming'
+  useEffect(() => {
+    if (callState !== 'incoming') {
+      stopRinging()
+    }
+  }, [callState])
 
   useEffect(() => {
     if (!user?.uid) return
@@ -44,6 +53,7 @@ export default function CallListener() {
         remoteUser,
         conversationId,
       })
+      startRinging()
     }
 
     const unsub = onValue(callsRef, snap => {
@@ -64,6 +74,7 @@ export default function CallListener() {
     return () => {
       unsub()
       ringingRef.current.clear()
+      stopRinging()
     }
   }, [user?.uid, setCallState])
 
