@@ -1167,17 +1167,18 @@ function ChatView() {
           </div>
         )}
         <div className="flex items-end gap-2">
-          <input
-            ref={photoInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={e => {
-              const f = e.target.files?.[0]
-              if (f) sendPhoto(f)
-              e.target.value = ''
-            }}
-          />
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={e => {
+                const f = e.target.files?.[0]
+                if (f) sendPhoto(f)
+                e.target.value = ''
+              }}
+            />
           <motion.button
             whileTap={{ scale: 0.88 }}
             onClick={() => photoInputRef.current?.click()}

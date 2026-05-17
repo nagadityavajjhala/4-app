@@ -79,8 +79,9 @@ export default function App() {
     return unsub
   }, [user, setOnlineUsers])
 
-  // Android back button — navigate one screen back, don't exit
+  // Handle back gesture — prevent exit, navigate one screen back
   useEffect(() => {
+    // Capacitor Android back button
     let removeListener
     try {
       CapacitorApp.addListener('backButton', () => {
@@ -99,6 +100,25 @@ export default function App() {
     return () => {
       if (removeListener) removeListener()
     }
+  }, [])
+
+  // Web browser back gesture — intercept popstate to prevent exit
+  useEffect(() => {
+    window.history.pushState(null, '')
+    const onPop = (e) => {
+      e.preventDefault()
+      window.history.pushState(null, '')
+      const s = useStore.getState()
+      if (s.callState) {
+        s.setCallState(null)
+      } else if (s.activeChatId) {
+        s.clearActiveChat()
+      } else if (s.activeTab !== 'chats') {
+        s.setActiveTab('chats')
+      }
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
   }, [])
 
   if (loading) return <LoadingScreen />

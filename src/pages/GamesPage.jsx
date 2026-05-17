@@ -249,7 +249,13 @@ export default function GamesPage() {
             return (
               <div
                 className="absolute z-20 pointer-events-none"
-                style={{ left: a.x, top: a.y - 2 }}
+                style={{
+                  left: a.x,
+                  top: a.y - 2,
+                  width: len,
+                  transform: `rotate(${angle}deg)`,
+                  transformOrigin: 'left',
+                }}
               >
                 <motion.div
                   initial={{ scaleX: 0 }}
@@ -257,11 +263,8 @@ export default function GamesPage() {
                   transition={{ delay: 0.2, ...spring }}
                   className="h-[3px] rounded-full origin-left"
                   style={{
-                    width: len,
                     background: ACCENT,
                     boxShadow: '0 0 10px rgba(255,69,58,0.5)',
-                    transform: `rotate(${angle}deg)`,
-                    transformOrigin: 'left',
                   }}
                 />
               </div>
