@@ -26,23 +26,61 @@ export default function AuthPage() {
   const [phoneLoading, setPhoneLoading] = useState(false)
   const confirmRef = useRef(null)
   const verifierRef = useRef(null)
+  const [verifierReady, setVerifierReady] = useState(false)
 
-  // Create RecaptchaVerifier once when phone mode is entered
   useEffect(() => {
     if (authMode !== 'phone') {
       setOtp('')
       setOtpSent(false)
-      // Clear the verifier when leaving phone mode
+      setVerifierReady(false)
       try { verifierRef.current?.clear() } catch {}
       verifierRef.current = null
       return
     }
-    if (!verifierRef.current) {
-      verifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+
+    let cancelled = false
+    async function setup() {
+      try { verifierRef.current?.clear() } catch {}
+      const v = new RecaptchaVerifier(auth, 'recaptcha-container', {
         size: 'invisible',
+        callback: () => { console.log('reCAPTCHA solved') },
+        'expired-callback': () => { console.log('reCAPTCHA expired') },
       })
+      await v.render()
+      if (!cancelled) {
+        verifierRef.current = v
+        setVerifierReady(true)
+      }
     }
+    setup().catch(err => {
+      if (!cancelled) toast.error('reCAPTCHA setup failed: ' + (err.message || err))
+    })
+    return () => { cancelled = true }
   }, [authMode])
+
+  async function sendOtp() {
+    const cleaned = phone.replace(/\s+/g, '')
+    if (!cleaned) { toast.error('Enter your phone number'); return }
+    const full = countryCode + cleaned
+    setPhoneLoading(true)
+    try {
+      const verifier = verifierRef.current
+      if (!verifier || !verifierReady) { toast.error('reCAPTCHA not ready, please wait'); return }
+      const confirmation = await signInWithPhoneNumber(auth, full, verifier)
+      confirmRef.current = confirmation
+      setOtpSent(true)
+      toast.success('OTP sent!')
+    } catch (err) {
+      console.error('sendOtp error:', err)
+      try { verifierRef.current?.reset() } catch {}
+      const msg = (err.message || '')
+        .replace('Firebase: ', '')
+        .replace(/ \(auth\/.*\)\.?/, '')
+      toast.error(msg || 'Something went wrong')
+    } finally {
+      setPhoneLoading(false)
+    }
+  }
 
   async function handleEmailSubmit(e) {
     e.preventDefault()
@@ -65,30 +103,6 @@ export default function AuthPage() {
       toast.error(msg)
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function sendOtp() {
-    const cleaned = phone.replace(/\s+/g, '')
-    if (!cleaned) { toast.error('Enter your phone number'); return }
-    const full = countryCode + cleaned
-    setPhoneLoading(true)
-    try {
-      const verifier = verifierRef.current
-      if (!verifier) { toast.error('reCAPTCHA not ready. Try again.'); return }
-      const confirmation = await signInWithPhoneNumber(auth, full, verifier)
-      confirmRef.current = confirmation
-      setOtpSent(true)
-      toast.success('OTP sent!')
-    } catch (err) {
-      // Reset reCAPTCHA for next attempt instead of recreating
-      try { verifierRef.current?.reset() } catch {}
-      const msg = (err.message || '')
-        .replace('Firebase: ', '')
-        .replace(/ \(auth\/.*\)\.?/, '')
-      toast.error(msg || 'Something went wrong')
-    } finally {
-      setPhoneLoading(false)
     }
   }
 
