@@ -12,7 +12,7 @@ import StatusBar from '../components/status/StatusBar'
 import {
   Search, ChevronLeft, Send, Phone, Video,
   UserPlus, Lock, X, Check, CheckCheck, Camera, ImagePlus, Mic, Play, Pause,
-  Gamepad2, Palette, Trash2, SmilePlus,
+  Gamepad2, Palette, Trash2, SmilePlus, Download,
 } from 'lucide-react'
 import { format, isToday, isYesterday } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -315,8 +315,55 @@ function AddContactModal({ onClose }) {
           .filter(u =>
             u.username?.toLowerCase().includes(term) ||
             u.displayName?.toLowerCase().includes(term)
-          )
-      }
+  )
+}
+
+function ImageOverlay({ src, onClose }) {
+  const handleDownload = useCallback(() => {
+    const a = document.createElement('a')
+    a.href = src
+    a.download = 'photo.jpg'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }, [src])
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
+      onClick={onClose}
+    >
+      <button
+        onClick={e => { e.stopPropagation(); onClose() }}
+        className="fixed top-12 right-4 z-[101] w-9 h-9 rounded-full flex items-center justify-center"
+        style={{ background: 'rgba(255,255,255,0.12)' }}
+      >
+        <X size={18} className="text-white/80" />
+      </button>
+      <button
+        onClick={e => { e.stopPropagation(); handleDownload() }}
+        className="fixed top-12 right-16 z-[101] w-9 h-9 rounded-full flex items-center justify-center"
+        style={{ background: 'rgba(255,255,255,0.12)' }}
+      >
+        <Download size={16} className="text-white/80" />
+      </button>
+      <motion.img
+        initial={{ scale: 0.92, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.92, opacity: 0 }}
+        src={src}
+        alt="Full size"
+        className="max-w-[90vw] max-h-[85vh] rounded-lg object-contain"
+        onClick={e => e.stopPropagation()}
+        draggable={false}
+      />
+    </motion.div>
+  )
+}
       setResults(found.filter(u => u.uid !== user.uid).slice(0, 10))
     } catch (err) {
       console.error('searchUsers error:', err?.code, err?.message)
@@ -618,6 +665,7 @@ function ChatView() {
   const [showGames, setShowGames] = useState(false)
   const [showThemePicker, setShowThemePicker] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [viewImage, setViewImage] = useState(null)
   const emojiPickerRef = useRef(null)
   const typingTimeoutRef = useRef(null)
   const otherMsgCountRef = useRef(0)
@@ -1109,6 +1157,7 @@ function ChatView() {
                       viewerUid={user.uid}
                       onWordleGuess={submitWordleGuess}
                       onTriviaAnswer={submitTriviaAnswer}
+                      onImageClick={setViewImage}
                     />
                   </button>
                 </motion.div>
@@ -1314,11 +1363,18 @@ function ChatView() {
           />
         )}
       </AnimatePresence>
+
+      {/* Image viewer */}
+      <AnimatePresence>
+        {viewImage && (
+          <ImageOverlay src={viewImage} onClose={() => setViewImage(null)} />
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }
 
-function MessageContent({ msg, isMine, viewerUid, onWordleGuess, onTriviaAnswer }) {
+function MessageContent({ msg, isMine, viewerUid, onWordleGuess, onTriviaAnswer, onImageClick }) {
   if (msg.type === 'game' && msg.gameType === 'wordle') {
     return <WordleGameMessage msg={msg} isMine={isMine} onGuess={onWordleGuess} />
   }
@@ -1339,8 +1395,9 @@ function MessageContent({ msg, isMine, viewerUid, onWordleGuess, onTriviaAnswer 
         <img
           src={imgSrc}
           alt="Shared"
-          className="max-w-[220px] max-h-[280px] rounded-xl object-cover"
+          className="max-w-[220px] max-h-[280px] rounded-xl object-cover cursor-pointer"
           loading="lazy"
+          onClick={() => onImageClick?.(imgSrc)}
         />
       </div>
     )
