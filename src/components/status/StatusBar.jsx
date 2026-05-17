@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   collection, query, where, onSnapshot,
-  addDoc, serverTimestamp, Timestamp, deleteDoc, doc,
+  addDoc, serverTimestamp, Timestamp, deleteDoc, doc, updateDoc,
 } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { useStore } from '../../lib/store'
@@ -32,6 +32,7 @@ export default function StatusBar() {
       const grouped = {}
       snap.docs.forEach(d => {
         const s = { id: d.id, ...d.data() }
+        if (s.deleted) return
         if (!grouped[s.uid]) {
           grouped[s.uid] = { uid: s.uid, user: s.user, items: [] }
         }
@@ -277,13 +278,18 @@ function StatusViewer({ group, onClose }) {
     setDeleting(true)
     try {
       await deleteDoc(doc(db, 'statuses', current.id))
-      toast.success('Status deleted')
-      onClose()
     } catch {
-      toast.error('Could not delete status')
-    } finally {
-      setDeleting(false)
+      try {
+        await updateDoc(doc(db, 'statuses', current.id), { deleted: true })
+      } catch {
+        toast.error('Could not delete status')
+        setDeleting(false)
+        return
+      }
     }
+    toast.success('Status deleted')
+    onClose()
+    setDeleting(false)
   }
 
   return (

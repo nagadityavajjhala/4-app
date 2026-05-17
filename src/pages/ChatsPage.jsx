@@ -12,7 +12,7 @@ import StatusBar from '../components/status/StatusBar'
 import {
   Search, ChevronLeft, Send, Phone, Video,
   UserPlus, Lock, X, Check, CheckCheck, Camera, ImagePlus, Mic, Play, Pause,
-  Gamepad2, Palette,
+  Gamepad2, Palette, Trash2,
 } from 'lucide-react'
 import { format, isToday, isYesterday } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -840,6 +840,20 @@ function ChatView() {
     setCallState('outgoing', { type, remoteUser: activeChatUser, conversationId: activeChatId })
   }
 
+  async function clearChat() {
+    if (!window.confirm('Clear all messages in this chat?')) return
+    try {
+      const q = query(collection(db, 'conversations', activeChatId, 'messages'))
+      const snap = await getDocs(q)
+      const batch = writeBatch(db)
+      snap.docs.forEach(d => batch.delete(d.ref))
+      await batch.commit()
+      toast.success('Chat cleared')
+    } catch {
+      toast.error('Could not clear chat')
+    }
+  }
+
   async function toggleReaction(msg, emoji) {
     if (!msg.id || msg.id.startsWith('pending') || msg._pending) return
     const msgRef = doc(db, 'conversations', activeChatId, 'messages', msg.id)
@@ -895,6 +909,7 @@ function ChatView() {
 
         <div className="flex gap-1">
           {[
+            { icon: <Trash2 size={16} strokeWidth={1.8} />, action: () => clearChat() },
             { icon: <Gamepad2 size={17} strokeWidth={1.8} />, action: () => setShowGames(true) },
             { icon: <Palette size={17} strokeWidth={1.8} />, action: () => setShowThemePicker(true) },
             { icon: <Phone size={17} strokeWidth={1.8} />, action: () => startCall('audio') },
@@ -939,13 +954,14 @@ function ChatView() {
                     type="button"
                     onClick={() => setReactionTarget(reactionTarget === msg.id ? null : msg.id)}
                     onDoubleClick={() => toggleReaction(msg, '👍')}
-                    className="text-center rounded-2xl px-4 py-2.5 max-w-[78%] text-[15px] leading-relaxed"
+                    className="rounded-2xl px-4 py-2.5 max-w-[80%] text-[14px] leading-relaxed"
                     style={{
                       background: isMine ? theme.sent : theme.received,
                       color: '#fff',
                       borderRadius: '20px',
                       borderBottomRightRadius: isMine ? '6px' : '20px',
                       borderBottomLeftRadius: isMine ? '20px' : '6px',
+                      textAlign: isMine ? 'right' : 'left',
                     }}
                   >
                     <MessageContent

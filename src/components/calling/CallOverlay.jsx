@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { useStore } from '../../lib/store'
 import Avatar from '../ui/Avatar'
 import { Phone, PhoneOff, Video, VideoOff, Mic, MicOff } from 'lucide-react'
+import { startRinging, stopRinging } from '../../lib/ringtone'
 import {
   writeRingingCall,
   writeCallAnswer,
@@ -307,6 +308,14 @@ export default function CallOverlay() {
       cleanupMedia()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (callState === 'outgoing') {
+      startRinging()
+    } else {
+      stopRinging()
+    }
+  }, [callState])
 
   useEffect(() => {
     if (callState === 'active') {
