@@ -320,12 +320,24 @@ function AddContactModal({ onClose }) {
 
 function ImageOverlay({ src, onClose }) {
   const handleDownload = useCallback(() => {
-    const a = document.createElement('a')
-    a.href = src
-    a.download = 'photo.jpg'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+    const link = document.createElement('a')
+    link.download = 'photo.jpg'
+    if (src.startsWith('data:')) {
+      fetch(src)
+        .then(r => r.blob())
+        .then(blob => {
+          link.href = URL.createObjectURL(blob)
+          link.click()
+          URL.revokeObjectURL(link.href)
+        })
+        .catch(() => {
+          link.href = src
+          link.click()
+        })
+    } else {
+      link.href = src
+      link.click()
+    }
   }, [src])
 
   return (
@@ -351,16 +363,19 @@ function ImageOverlay({ src, onClose }) {
       >
         <Download size={16} className="text-white/80" />
       </button>
-      <motion.img
+      <motion.div
         initial={{ scale: 0.92, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.92, opacity: 0 }}
-        src={src}
-        alt="Full size"
-        className="max-w-[90vw] max-h-[85vh] rounded-lg object-contain"
-        onClick={e => e.stopPropagation()}
-        draggable={false}
-      />
+      >
+        <img
+          src={src}
+          alt="Full size"
+          className="max-w-[90vw] max-h-[85vh] rounded-lg object-contain"
+          onClick={e => e.stopPropagation()}
+          draggable={false}
+        />
+      </motion.div>
     </motion.div>
   )
 }

@@ -395,32 +395,32 @@ export default function CallOverlay() {
       {/* Audio always plays regardless of minimized state */}
       <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
 
-      {/* Remote video — single element, repositioned by CSS */}
-      {isVideo && callState === 'active' && (
+      {/* Remote video — always mounted for video calls so streams attach properly */}
+      {isVideo && (
         <video
           ref={remoteVideoRef}
           autoPlay
           playsInline
-          className={minimized
+          className={minimized && callState === 'active'
             ? 'fixed bottom-24 right-4 w-32 h-48 object-cover rounded-xl shadow-2xl'
             : 'fixed inset-0 w-full h-full object-cover'
           }
-          style={{ zIndex: minimized ? 60 : 40 }}
+          style={{ zIndex: minimized && callState === 'active' ? 60 : 40 }}
         />
       )}
 
-      {/* Local video — single element, repositioned by CSS */}
-      {isVideo && callState === 'active' && (
+      {/* Local video — always mounted for video calls */}
+      {isVideo && (
         <video
           ref={localVideoRef}
           autoPlay
           muted
           playsInline
-          className={minimized
+          className={minimized && callState === 'active'
             ? 'fixed top-24 left-4 w-20 h-28 object-cover rounded-xl border border-white/20 shadow-xl'
             : 'fixed top-16 right-4 w-28 h-40 object-cover rounded-2xl border border-white/20 shadow-2xl'
           }
-          style={{ zIndex: minimized ? 61 : 41 }}
+          style={{ zIndex: minimized && callState === 'active' ? 61 : 41 }}
         />
       )}
 
