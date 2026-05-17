@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { RefreshCw, ChevronLeft, Clock, ExternalLink } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ACCENT, ACCENT_SOFT } from '../lib/accent'
-import { fetchGoogleNews, NEWS_TOPICS, getCachedNewsAge } from '../lib/googleNews'
+import { fetchHindustanTimes, NEWS_TOPICS, getCachedNewsAge } from '../lib/hindustanTimes'
 
 const spring = { type: 'spring', stiffness: 400, damping: 28, mass: 0.6 }
 
@@ -23,7 +23,7 @@ export default function NewsPage() {
     setFromCache(false)
     const before = getCachedNewsAge(cat)
     try {
-      const items = await fetchGoogleNews(cat)
+      const items = await fetchHindustanTimes(cat)
       setArticles(items)
       const after = getCachedNewsAge(cat)
       setFromCache(before && after === before)
