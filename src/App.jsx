@@ -7,6 +7,7 @@ import toast, { Toaster } from 'react-hot-toast'
 import { auth, db, rtdb } from './lib/firebase'
 import { useStore } from './lib/store'
 import { getOrCreateKeypair, getPublicKeyB64 } from './lib/crypto'
+import { requestNotificationPermission, onForegroundMessage, cleanupMessaging } from './lib/notifications'
 import { App as CapacitorApp } from '@capacitor/app'
 import AuthPage from './pages/AuthPage'
 import MainApp from './pages/MainApp'
@@ -61,9 +62,15 @@ export default function App() {
         set(presenceRef, { online: true, lastSeen: rtServerTimestamp() })
         onDisconnect(presenceRef).set({ online: false, lastSeen: rtServerTimestamp() })
 
+        // Setup push notifications
+        setTimeout(() => {
+          requestNotificationPermission()
+        }, 2000)
+
       } else {
         setUser(null)
         setUserProfile(null)
+        cleanupMessaging()
       }
       setLoading(false)
     })
@@ -78,6 +85,33 @@ export default function App() {
     })
     return unsub
   }, [user, setOnlineUsers])
+
+  // Foreground push notification handler
+  useEffect(() => {
+    onForegroundMessage(data => {
+      const conversationId = data.conversationId
+      const activeChatId = useStore.getState().activeChatId
+      const senderName = data.senderName || 'Someone'
+      const body = data.body || ''
+
+      if (data.type === 'call') {
+        toast(`${senderName} is calling`, {
+          icon: '📞',
+          duration: 8000,
+          style: { background: '#1a1a1a', color: '#fff', borderRadius: '14px' },
+        })
+        return
+      }
+
+      if (conversationId && conversationId !== activeChatId) {
+        toast(`${senderName}: ${body}`, {
+          icon: '💬',
+          duration: 4000,
+          style: { background: '#1a1a1a', color: '#fff', borderRadius: '14px' },
+        })
+      }
+    })
+  }, [])
 
   // Handle back/gesture navigation — single back = navigate, double back root = exit
   useEffect(() => {

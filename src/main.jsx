@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
+import { initMessaging } from './lib/notifications'
 
 // GitHub Pages SPA redirect (from public/404.html)
 ;(function () {
@@ -21,6 +22,13 @@ import './index.css'
     window.history.replaceState(null, '', redirect)
   }
 })()
+
+// Register Firebase Cloud Messaging service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/firebase-messaging-sw.js').catch(() => {})
+}
+
+initMessaging()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

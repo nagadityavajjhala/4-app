@@ -12,7 +12,7 @@ import StatusBar from '../components/status/StatusBar'
 import {
   Search, ChevronLeft, Send, Phone, Video,
   UserPlus, Lock, X, Check, CheckCheck, Camera, ImagePlus, Mic, Play, Pause,
-  Gamepad2, Palette, Trash2,
+  Gamepad2, Palette, Trash2, SmilePlus,
 } from 'lucide-react'
 import { format, isToday, isYesterday } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -617,6 +617,8 @@ function ChatView() {
   const [themeId, setThemeId] = useState(() => getChatTheme(activeChatId).id)
   const [showGames, setShowGames] = useState(false)
   const [showThemePicker, setShowThemePicker] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const emojiPickerRef = useRef(null)
   const typingTimeoutRef = useRef(null)
   const otherMsgCountRef = useRef(0)
   const initialLoadDoneRef = useRef(false)
@@ -931,6 +933,31 @@ function ChatView() {
     recordChunksRef.current = []
   }
 
+  const EMOJIS = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','😜','🤪','😝','🤑','🤗','🤭','🫣','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','😮','😲','🥺','😢','😭','😤','😡','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻','👽','👾','🤖','🎃','😺','😸','😹','😻','😼','😽','🙀','😿','😾','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','👍','👎','👊','✊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✌️','🤞','🫰','🤟','🤘','🤙','👋','🤚','✋','🖐','🖖','👌','🤌','🤏','🫳','🫴','💪','🦵','🦶','👂','🦻','👃','🧠','🦷','🦴','👀','👁','👅','👄','💋','🏃','🚶','🧍','🧎','🕺','💃','🌍','🌎','🌏','🌐','🗺','🏔','⛰','🌋','🗻','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏭','🏯','🏰','💒','🗼','🗽','⛪','🕌','🛕','🕍','⛩','🕋','⛲','⛺','🌁','🌃','🏙','🌄','🌅','🌆','🌇','🌉','🎠','🎡','🎢','🎪','🚂','🚃','🚄','🚅','🚆','🚇','🚈','🚉','🚊','🚝','🚞','🚋','🚌','🚍','🚎','🚐','🚑','🚒','🚓','🚔','🚕','🚖','🚗','🚘','🚙','🚚','🚛','🚜','🏎','🏍','🛵','🛺','🚲','🛴','🛹','🛼','🚏','🛣','🛤','⛽','🛞','🚨','🚥','🚦','🚧','🛑','⚓','🛟','⛵','🛶','🚤','🛳','⛴','🛥','🚢','✈','🛩','🛫','🛬','🪂','💺','🚁','🚟','🚠','🚡','🛰','🚀','🛸','🏕','🏖','🏜','🏝','🏞','🎆','🎇','🧨','✨','🎈','🎉','🎊','🎃','🎄','🎋','🎍','🎑','🎀','🎁','🎗','🎟','🎫','🏆','🏅','🥇','🥈','🥉','⚽','⚾','🥎','🏀','🏐','🏈','🏉','🎾','🥏','🎳','🏏','🏑','🏒','🥍','🏓','🏸','🪃','🥅','⛳','🪁','🏹','🎣','🤿','🥊','🥋','🎽','🛷','⛸','🥌','🎿','⛷','🏂','🪂','🏋','🤼','🤸','🤺','⛹','🤾','🏌','🏇','🧘','🏄','🏊','🤽','🚣','🧗','🚵','🚴','🎯','🎮','🎲','♠','♥','♦','♣','🃏','🀄','🎴','🎭','🖼','🎨','🎬','🎤','🎧','🎼','🎹','🥁','🪘','🎷','🎺','🪗','🎸','🪕','🎻','🎙','🎚','🎛','📻','📱','📲','☎','📞','📟','📠','🔋','🪫','🔌','💻','🖥','🖨','⌨','🖱','🖲','💽','💾','💿','📀','🧮','📷','📸','📹','🎥','📽','🎞','📺','📻','🎙','🎚','🎛','🧭','⏱','⏲','⏰','🕰','⌛','⏳','📡']
+
+  function insertEmoji(emoji) {
+    const ta = textareaRef.current
+    if (!ta) { setInput(prev => prev + emoji); return }
+    const start = ta.selectionStart
+    const end = ta.selectionEnd
+    const newVal = input.slice(0, start) + emoji + input.slice(end)
+    setInput(newVal)
+    requestAnimationFrame(() => {
+      ta.focus()
+      const pos = start + emoji.length
+      ta.setSelectionRange(pos, pos)
+    })
+  }
+
+  useEffect(() => {
+    if (!showEmojiPicker) return
+    function handler(e) {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target)) setShowEmojiPicker(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showEmojiPicker])
+
   function startCall(type) {
     setCallState('outgoing', { type, remoteUser: activeChatUser, conversationId: activeChatId })
   }
@@ -1179,6 +1206,35 @@ function ChatView() {
                 e.target.value = ''
               }}
             />
+          <div className="relative">
+            <motion.button
+              whileTap={{ scale: 0.88 }}
+              onClick={() => setShowEmojiPicker(v => !v)}
+              disabled={sending || recording}
+              className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-30 transition-opacity"
+              style={{ background: 'rgba(255,255,255,0.06)' }}
+            >
+              <SmilePlus size={18} strokeWidth={1.8} className="text-white/60" />
+            </motion.button>
+            {showEmojiPicker && (
+              <div
+                ref={emojiPickerRef}
+                className="absolute bottom-full left-0 mb-2 w-[280px] max-h-[240px] overflow-y-auto rounded-xl p-2 z-50 grid grid-cols-7 gap-1"
+                style={{ background: 'rgba(30,30,32,0.95)', border: '0.5px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(16px)' }}
+              >
+                {EMOJIS.map(e => (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => { insertEmoji(e); setShowEmojiPicker(false) }}
+                    className="w-9 h-9 flex items-center justify-center rounded-lg text-xl hover:bg-white/10 transition-colors"
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <motion.button
             whileTap={{ scale: 0.88 }}
             onClick={() => photoInputRef.current?.click()}
