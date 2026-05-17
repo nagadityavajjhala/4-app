@@ -25,7 +25,8 @@ import { initMessaging } from './lib/notifications'
 
 // Register Firebase Cloud Messaging service worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/firebase-messaging-sw.js').catch(() => {})
+  const swUrl = import.meta.env.BASE_URL + 'firebase-messaging-sw.js'
+  navigator.serviceWorker.register(swUrl).catch(() => {})
 }
 
 initMessaging()
