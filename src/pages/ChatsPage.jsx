@@ -894,6 +894,16 @@ function ChatView() {
           <ChevronLeft size={20} strokeWidth={2} />
         </motion.button>
 
+        <motion.button
+          whileTap={{ scale: 0.88 }}
+          onClick={clearChat}
+          title="Clear chat"
+          className="w-9 h-9 flex items-center justify-center rounded-full text-white/50"
+          style={{ background: 'rgba(255,69,58,0.12)' }}
+        >
+          <Trash2 size={15} strokeWidth={1.8} />
+        </motion.button>
+
         <Avatar user={activeChatUser} size={36} />
 
         <div className="flex-1 min-w-0">
@@ -909,7 +919,6 @@ function ChatView() {
 
         <div className="flex gap-1">
           {[
-            { icon: <Trash2 size={16} strokeWidth={1.8} />, action: () => clearChat() },
             { icon: <Gamepad2 size={17} strokeWidth={1.8} />, action: () => setShowGames(true) },
             { icon: <Palette size={17} strokeWidth={1.8} />, action: () => setShowThemePicker(true) },
             { icon: <Phone size={17} strokeWidth={1.8} />, action: () => startCall('audio') },
@@ -1156,19 +1165,21 @@ function MessageContent({ msg, isMine, viewerUid, onWordleGuess, onTriviaAnswer 
   const imgSrc = msg.imageData || msg.imageUrl
   if (msg.type === 'image' && imgSrc) {
     return (
-      <img
-        src={imgSrc}
-        alt="Shared"
-        className="max-w-[220px] max-h-[280px] rounded-xl object-cover"
-        loading="lazy"
-      />
+      <div style={{ textAlign: isMine ? 'right' : 'center' }}>
+        <img
+          src={imgSrc}
+          alt="Shared"
+          className="max-w-[220px] max-h-[280px] rounded-xl object-cover"
+          loading="lazy"
+        />
+      </div>
     )
   }
   const audioSrc = msg.audioData || msg.audioUrl
   if (msg.type === 'audio' && audioSrc) {
     return <VoiceBubble url={audioSrc} duration={msg.audioDuration} isMine={isMine} />
   }
-  return <span>{msg.text || ''}</span>
+  return <div style={{ textAlign: isMine ? 'right' : 'left', width: '100%' }}>{msg.text || ''}</div>
 }
 
 function VoiceBubble({ url, duration, isMine }) {
