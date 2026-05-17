@@ -1,26 +1,55 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
 import { auth } from '../lib/firebase'
 import toast from 'react-hot-toast'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Smartphone, Mail, ArrowLeft } from 'lucide-react'
 import { ACCENT, ACCENT_SOFT, ACCENT_GLOW } from '../lib/accent'
 
+const AUTH_TABS = [
+  { id: 'signin', label: 'Sign in' },
+  { id: 'signup', label: 'Create' },
+  { id: 'phone', label: 'Phone' },
+]
+
 export default function AuthPage() {
-  const [mode, setMode] = useState('signin')
+  const [authMode, setAuthMode] = useState('signin')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [name, setName]         = useState('')
   const [showPw, setShowPw]     = useState(false)
   const [loading, setLoading]   = useState(false)
+  const [phone, setPhone]       = useState('')
+  const [otp, setOtp]           = useState('')
+  const [otpSent, setOtpSent]   = useState(false)
+  const [phoneLoading, setPhoneLoading] = useState(false)
+  const recaptchaRef = useRef(null)
+  const confirmRef = useRef(null)
 
-  async function handleSubmit(e) {
+  useEffect(() => {
+    if (authMode !== 'phone') {
+      setOtp('')
+      setOtpSent(false)
+    }
+  }, [authMode])
+
+  function createRecaptcha() {
+    if (!recaptchaRef.current) {
+      recaptchaRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+      })
+    }
+    return recaptchaRef.current
+  }
+
+  async function handleEmailSubmit(e) {
     e.preventDefault()
     if (loading) return
+    if (!email.trim() || !password) return
     setLoading(true)
     try {
-      if (mode === 'signup') {
-        if (!name.trim()) { toast.error('Enter your name'); return }
+      if (authMode === 'signup') {
+        if (!name.trim()) { toast.error('Enter your name'); setLoading(false); return }
         const cred = await createUserWithEmailAndPassword(auth, email.trim(), password)
         await updateProfile(cred.user, { displayName: name.trim() })
         toast.success('Welcome to 4 ✦')
@@ -28,7 +57,47 @@ export default function AuthPage() {
         await signInWithEmailAndPassword(auth, email.trim(), password)
       }
     } catch (err) {
-      const msg = err.message
+      const msg = (err.message || '')
+        .replace('Firebase: ', '')
+        .replace(/ \(auth\/.*\)\.?/, '')
+      toast.error(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function sendOtp() {
+    const cleaned = phone.replace(/\s+/g, '')
+    if (!cleaned) { toast.error('Enter your phone number'); return }
+    setPhoneLoading(true)
+    try {
+      const verifier = createRecaptcha()
+      const confirmation = await signInWithPhoneNumber(auth, cleaned, verifier)
+      confirmRef.current = confirmation
+      setOtpSent(true)
+      toast.success('OTP sent!')
+    } catch (err) {
+      const msg = (err.message || '')
+        .replace('Firebase: ', '')
+        .replace(/ \(auth\/.*\)\.?/, '')
+      toast.error(msg)
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset()
+      }
+    } finally {
+      setPhoneLoading(false)
+    }
+  }
+
+  async function verifyOtp() {
+    if (!otp.trim()) { toast.error('Enter the OTP'); return }
+    setLoading(true)
+    try {
+      await confirmRef.current.confirm(otp.trim())
+      // onAuthStateChanged in App.jsx handles profile creation
+      toast.success('Signed in!')
+    } catch (err) {
+      const msg = (err.message || '')
         .replace('Firebase: ', '')
         .replace(/ \(auth\/.*\)\.?/, '')
       toast.error(msg)
@@ -39,13 +108,11 @@ export default function AuthPage() {
 
   return (
     <div className="h-full bg-black flex flex-col items-center justify-center px-6 overflow-hidden">
-      {/* Ambient glow */}
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(255,69,58,0.06) 0%, transparent 70%)' }}
       />
 
-      {/* Logo */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -63,107 +130,183 @@ export default function AuthPage() {
         </p>
       </motion.div>
 
-      {/* Glass card */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
         className="w-full max-w-[340px] glass-card rounded-3xl p-6"
       >
-        {/* Mode toggle */}
         <div className="flex glass-pill rounded-2xl p-1 mb-5">
-          {['signin', 'signup'].map(m => (
+          {AUTH_TABS.map(tab => (
             <button
-              key={m}
-              onClick={() => setMode(m)}
+              key={tab.id}
+              onClick={() => setAuthMode(tab.id)}
               className="flex-1 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 relative"
-              style={{ color: mode === m ? '#fff' : 'rgba(255,255,255,0.35)' }}
+              style={{ color: authMode === tab.id ? '#fff' : 'rgba(255,255,255,0.35)' }}
             >
-              {mode === m && (
+              {authMode === tab.id && (
                 <motion.div
-                  layoutId="mode-pill"
+                  layoutId="auth-pill"
                   className="absolute inset-0 rounded-xl"
                   style={{ background: 'rgba(255,255,255,0.1)' }}
                   transition={{ type: 'spring', bounce: 0.2, duration: 0.35 }}
                 />
               )}
-              <span className="relative z-10">
-                {m === 'signin' ? 'Sign in' : 'Create account'}
+              <span className="relative z-10 flex items-center justify-center gap-1.5">
+                {tab.id === 'phone' ? <Smartphone size={13} /> : tab.id === 'signin' ? null : null}
+                {tab.label}
               </span>
             </button>
           ))}
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <AnimatePresence>
-            {mode === 'signup' && (
-              <motion.div
-                key="name-field"
-                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                animate={{ opacity: 1, height: 'auto', marginBottom: 0 }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.22 }}
-                className="overflow-hidden"
-              >
+        {authMode === 'phone' ? (
+          <div className="space-y-3">
+            {!otpSent ? (
+              <>
+                <div className="flex gap-2">
+                  <div className="flex-shrink-0">
+                    <select
+                      defaultValue="+91"
+                      className="input-field w-[90px] text-center"
+                      style={{ appearance: 'none' }}
+                    >
+                      <option value="+1">+1</option>
+                      <option value="+44">+44</option>
+                      <option value="+91">+91</option>
+                      <option value="+86">+86</option>
+                      <option value="+81">+81</option>
+                      <option value="+61">+61</option>
+                      <option value="+49">+49</option>
+                      <option value="+33">+33</option>
+                    </select>
+                  </div>
+                  <input
+                    type="tel"
+                    placeholder="Phone number"
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                    className="input-field flex-1"
+                    autoComplete="tel"
+                  />
+                </div>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  disabled={phoneLoading}
+                  onClick={sendOtp}
+                  className="w-full py-3.5 rounded-2xl text-[15px] font-semibold disabled:opacity-50 transition-opacity"
+                  style={{ background: ACCENT, boxShadow: ACCENT_GLOW }}
+                >
+                  {phoneLoading ? <span className="flex items-center justify-center gap-2"><Spinner /> Sending…</span> : 'Send OTP'}
+                </motion.button>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-1">
+                  <button
+                    onClick={() => { setOtpSent(false); setOtp('') }}
+                    className="text-white/40 hover:text-white/70 transition-colors"
+                  >
+                    <ArrowLeft size={18} />
+                  </button>
+                  <span className="text-[12px] text-white/40">OTP sent to {phone}</span>
+                </div>
                 <input
                   type="text"
-                  placeholder="Your name"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  className="input-field"
-                  autoComplete="name"
+                  inputMode="numeric"
+                  placeholder="Enter OTP"
+                  value={otp}
+                  onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="input-field text-center text-[20px] tracking-[8px] font-mono"
+                  autoComplete="one-time-code"
                 />
-              </motion.div>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  disabled={loading || otp.length < 4}
+                  onClick={verifyOtp}
+                  className="w-full py-3.5 rounded-2xl text-[15px] font-semibold disabled:opacity-50 transition-opacity"
+                  style={{ background: ACCENT, boxShadow: ACCENT_GLOW }}
+                >
+                  {loading ? <span className="flex items-center justify-center gap-2"><Spinner /> Verifying…</span> : 'Verify & Sign in'}
+                </motion.button>
+              </>
             )}
-          </AnimatePresence>
-
-          <input
-            type="email"
-            placeholder="Email address"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            required
-            className="input-field"
-            autoComplete="email"
-          />
-
-          <div className="relative">
-            <input
-              type={showPw ? 'text' : 'password'}
-              placeholder="Password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              className="input-field pr-11"
-              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPw(v => !v)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/25 active:text-white/50 transition-colors"
-            >
-              {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
-            </button>
           </div>
+        ) : (
+          <form onSubmit={handleEmailSubmit} className="space-y-3">
+            <AnimatePresence>
+              {authMode === 'signup' && (
+                <motion.div
+                  key="name-field"
+                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  animate={{ opacity: 1, height: 'auto', marginBottom: 0 }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.22 }}
+                  className="overflow-hidden"
+                >
+                  <input
+                    type="text"
+                    placeholder="Your name"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    className="input-field"
+                    autoComplete="name"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          <motion.button
-            type="submit"
-            disabled={loading}
-            whileTap={{ scale: 0.97 }}
-            className="w-full py-3.5 rounded-2xl text-[15px] font-semibold mt-1 transition-opacity disabled:opacity-50"
-            style={{ background: ACCENT, boxShadow: ACCENT_GLOW }}
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <Spinner />
-                {mode === 'signup' ? 'Creating…' : 'Signing in…'}
-              </span>
-            ) : (
-              mode === 'signup' ? 'Create account' : 'Sign in'
-            )}
-          </motion.button>
-        </form>
+            <input
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              className="input-field"
+              autoComplete="email"
+            />
+
+            <div className="relative">
+              <input
+                type={showPw ? 'text' : 'password'}
+                placeholder="Password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                className="input-field pr-11"
+                autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw(v => !v)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/25 active:text-white/50 transition-colors"
+              >
+                {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </div>
+
+            <motion.button
+              type="submit"
+              disabled={loading}
+              whileTap={{ scale: 0.97 }}
+              className="w-full py-3.5 rounded-2xl text-[15px] font-semibold mt-1 transition-opacity disabled:opacity-50"
+              style={{ background: ACCENT, boxShadow: ACCENT_GLOW }}
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Spinner />
+                  {authMode === 'signup' ? 'Creating…' : 'Signing in…'}
+                </span>
+              ) : (
+                authMode === 'signup' ? 'Create account' : 'Sign in'
+              )}
+            </motion.button>
+          </form>
+        )}
       </motion.div>
+
+      {/* reCAPTCHA container — invisible */}
+      <div id="recaptcha-container" ref={recaptchaRef} />
 
       <motion.p
         initial={{ opacity: 0 }}
