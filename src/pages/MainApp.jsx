@@ -1,0 +1,42 @@
+import React from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useStore } from '../lib/store'
+import ChatsPage from './ChatsPage'
+import NewsPage from './NewsPage'
+import TabBar from '../components/ui/TabBar'
+import CallOverlay from '../components/calling/CallOverlay'
+import CallListener from '../components/calling/CallListener'
+
+const tabs = {
+  chats: ChatsPage,
+  news: NewsPage,
+}
+
+export default function MainApp() {
+  const { activeTab, callState } = useStore()
+  const ActivePage = tabs[activeTab] || ChatsPage
+
+  return (
+    <div className="h-full flex flex-col bg-black overflow-hidden">
+      <CallListener />
+      <AnimatePresence>{callState && <CallOverlay />}</AnimatePresence>
+
+      <div className="flex-1 overflow-hidden relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -5 }}
+            transition={{ duration: 0.18, ease: 'easeInOut' }}
+            className="h-full"
+          >
+            <ActivePage />
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      <TabBar />
+    </div>
+  )
+}

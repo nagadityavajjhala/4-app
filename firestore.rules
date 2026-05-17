@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // This is a private app — only people you share the URL with can access it.
+    // Any signed-in user can read/write anything. Simple and reliable.
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
