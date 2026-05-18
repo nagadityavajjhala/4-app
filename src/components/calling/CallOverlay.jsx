@@ -370,117 +370,97 @@ export default function CallOverlay() {
   const showMinimized = minimized && callState === 'active'
 
   return (
-    <>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: showMinimized ? 0 : 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex flex-col"
+      style={{
+        background: showMinimized ? 'transparent' : 'black',
+        pointerEvents: showMinimized ? 'none' : 'auto',
+      }}
+    >
       <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
 
-      {/* Video elements — always mounted when isVideo so refs are stable */}
-      {isVideo && (
+      {isVideo ? (
         <>
-          {/* Remote video — CSS repositions between full-screen and floating window */}
           <video
             ref={remoteVideoRef}
             autoPlay
             playsInline
-            className={showMinimized
-              ? 'fixed bottom-24 right-4 w-32 h-48 object-cover rounded-xl shadow-2xl'
-              : 'fixed inset-0 w-full h-full object-cover'
-            }
-            style={{ zIndex: showMinimized ? 60 : 40 }}
+            className="absolute inset-0 w-full h-full object-cover"
           />
-          {/* Local video — CSS repositions similarly */}
           <video
             ref={localVideoRef}
             autoPlay
             muted
             playsInline
-            className={showMinimized
-              ? 'fixed top-24 left-4 w-20 h-28 object-cover rounded-xl border border-white/20 shadow-xl'
-              : 'fixed top-16 right-4 w-28 h-40 object-cover rounded-2xl border border-white/20 shadow-2xl'
-            }
-            style={{ zIndex: showMinimized ? 61 : 41 }}
+            className="absolute top-16 right-4 w-28 h-40 object-cover rounded-2xl border border-white/20 shadow-2xl z-10"
           />
         </>
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <Avatar user={callData?.remoteUser} size={100} />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center"
+          >
+            <p className="text-xl font-semibold">{callData?.remoteUser?.displayName}</p>
+            <p className="text-white/50 text-sm mt-1">{displayStatus}</p>
+          </motion.div>
+        </div>
       )}
 
-      {/* Full-screen overlay */}
-      {!showMinimized && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-black flex flex-col"
+      {/* Minimize button (active call only, hidden when minimized) */}
+      {callState === 'active' && !showMinimized && (
+        <button
+          onClick={() => setMinimized(true)}
+          className="absolute top-12 left-4 z-20 w-9 h-9 rounded-full flex items-center justify-center"
+          style={{ background: 'rgba(255,255,255,0.12)' }}
         >
-          {/* Avatar + status — for audio calls, or video calls in non-active state */}
-          {(!isVideo || callState !== 'active') && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4">
-              <Avatar user={callData?.remoteUser} size={100} />
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center"
-              >
-                <p className="text-xl font-semibold">{callData?.remoteUser?.displayName}</p>
-                <p className="text-white/50 text-sm mt-1">{displayStatus}</p>
-              </motion.div>
-            </div>
-          )}
-
-          {/* Minimize button (active call only) */}
-          {callState === 'active' && (
-            <button
-              onClick={() => setMinimized(true)}
-              className="absolute top-12 left-4 z-20 w-9 h-9 rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(255,255,255,0.12)' }}
-            >
-              <Minimize2 size={16} className="text-white/80" />
-            </button>
-          )}
-
-          {/* Incoming: answer / decline */}
-          {callState === 'incoming' && (
-            <div className="absolute bottom-36 left-0 right-0 flex justify-center gap-16">
-              <CallButton icon={PhoneOff} onPress={declineIncomingCall} color="#ff453a" large />
-              <CallButton
-                icon={Phone}
-                onPress={() => {
-                  setCallState('outgoing', { ...callData, _role: 'callee' })
-                  answerIncomingCall()
-                }}
-                color="#30d158"
-                large
-              />
-            </div>
-          )}
-
-          {/* Outgoing / Active: controls */}
-          {(callState === 'outgoing' || callState === 'active') && (
-            <div className="absolute bottom-0 left-0 right-0 pb-safe pb-10 flex items-center justify-center gap-8">
-              <CallButton
-                icon={muted ? MicOff : Mic}
-                onPress={toggleMute}
-                active={muted}
-                color="rgba(255,255,255,0.15)"
-              />
-              <CallButton icon={PhoneOff} onPress={hangUp} color="#ff453a" size={28} large />
-              {isVideo && (
-                <CallButton
-                  icon={videoOff ? VideoOff : Video}
-                  onPress={toggleVideo}
-                  active={videoOff}
-                  color="rgba(255,255,255,0.15)"
-                />
-              )}
-            </div>
-          )}
-        </motion.div>
+          <Minimize2 size={16} className="text-white/80" />
+        </button>
       )}
 
-      {/* Minimized bar — floating top bar + video is already shown above */}
+      {callState === 'incoming' && (
+        <div className="absolute bottom-36 left-0 right-0 flex justify-center gap-16">
+          <CallButton icon={PhoneOff} onPress={declineIncomingCall} color="#ff453a" large />
+          <CallButton
+            icon={Phone}
+            onPress={() => {
+              setCallState('outgoing', { ...callData, _role: 'callee' })
+              answerIncomingCall()
+            }}
+            color="#30d158"
+            large
+          />
+        </div>
+      )}
+
+      {(callState === 'outgoing' || callState === 'active') && !showMinimized && (
+        <div className="absolute bottom-0 left-0 right-0 pb-safe pb-10 flex items-center justify-center gap-8">
+          <CallButton
+            icon={muted ? MicOff : Mic}
+            onPress={toggleMute}
+            active={muted}
+            color="rgba(255,255,255,0.15)"
+          />
+          <CallButton icon={PhoneOff} onPress={hangUp} color="#ff453a" size={28} large />
+          {isVideo && (
+            <CallButton
+              icon={videoOff ? VideoOff : Video}
+              onPress={toggleVideo}
+              active={videoOff}
+              color="rgba(255,255,255,0.15)"
+            />
+          )}
+        </div>
+      )}
+
+      {/* Minimized floating bar */}
       {showMinimized && (
-        <motion.div
-          initial={{ y: -80, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -80, opacity: 0 }}
+        <div
           className="fixed top-0 left-0 right-0 z-50 px-3 pt-2 pb-2"
           style={{
             background: 'rgba(10,10,12,0.92)',
@@ -524,9 +504,9 @@ export default function CallOverlay() {
               </button>
             </div>
           </div>
-        </motion.div>
+        </div>
       )}
-    </>
+    </motion.div>
   )
 }
 
