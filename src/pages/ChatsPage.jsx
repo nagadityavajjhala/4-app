@@ -280,44 +280,6 @@ function EmptyState({ hasSearch, onAdd }) {
 // ─────────────────────────────────────────────────────────────
 // Add Contact Modal — search by username
 // ─────────────────────────────────────────────────────────────
-function AddContactModal({ onClose }) {
-  const { user, setActiveChat } = useStore()
-  const [query_, setQuery]    = useState('')
-  const [results, setResults] = useState([])
-  const [searching, setSearching] = useState(false)
-  const [adding, setAdding]   = useState(null) // uid being added
-  const debounce = useRef(null)
-
-  async function searchUsers(q) {
-    const term = q.trim().toLowerCase().replace(/^@/, '')
-    if (term.length < 2) { setResults([]); return }
-    setSearching(true)
-    try {
-      // Try username prefix search first (needs Firestore index on 'username' field)
-      // Falls back to fetching all users and filtering client-side if index missing
-      let found = []
-      try {
-        const snap = await getDocs(
-          query(
-            collection(db, 'users'),
-            where('username', '>=', term),
-            where('username', '<=', term + '\uf8ff'),
-            limit(20)
-          )
-        )
-        found = snap.docs.map(d => ({ uid: d.id, ...d.data() }))
-      } catch (indexErr) {
-        console.warn('Username index missing, falling back to full scan:', indexErr.message)
-        // Fallback: get all users (fine for a small private app with <50 members)
-        const snap = await getDocs(collection(db, 'users'))
-        found = snap.docs
-          .map(d => ({ uid: d.id, ...d.data() }))
-          .filter(u =>
-            u.username?.toLowerCase().includes(term) ||
-            u.displayName?.toLowerCase().includes(term)
-  )
-}
-
 function ImageOverlay({ src, onClose }) {
   const handleDownload = useCallback(() => {
     const link = document.createElement('a')
@@ -379,6 +341,41 @@ function ImageOverlay({ src, onClose }) {
     </motion.div>
   )
 }
+
+function AddContactModal({ onClose }) {
+  const { user, setActiveChat } = useStore()
+  const [query_, setQuery]    = useState('')
+  const [results, setResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const [adding, setAdding]   = useState(null) // uid being added
+  const debounce = useRef(null)
+
+  async function searchUsers(q) {
+    const term = q.trim().toLowerCase().replace(/^@/, '')
+    if (term.length < 2) { setResults([]); return }
+    setSearching(true)
+    try {
+      let found = []
+      try {
+        const snap = await getDocs(
+          query(
+            collection(db, 'users'),
+            where('username', '>=', term),
+            where('username', '<=', term + '\uf8ff'),
+            limit(20)
+          )
+        )
+        found = snap.docs.map(d => ({ uid: d.id, ...d.data() }))
+      } catch (indexErr) {
+        console.warn('Username index missing, falling back to full scan:', indexErr.message)
+        const snap = await getDocs(collection(db, 'users'))
+        found = snap.docs
+          .map(d => ({ uid: d.id, ...d.data() }))
+          .filter(u =>
+            u.username?.toLowerCase().includes(term) ||
+            u.displayName?.toLowerCase().includes(term)
+          )
+      }
       setResults(found.filter(u => u.uid !== user.uid).slice(0, 10))
     } catch (err) {
       console.error('searchUsers error:', err?.code, err?.message)
