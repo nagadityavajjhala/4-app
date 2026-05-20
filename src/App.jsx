@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { onAuthStateChanged } from 'firebase/auth'
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, query, where, onSnapshot as fsOnSnapshot, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { ref, onDisconnect, set, onValue, serverTimestamp as rtServerTimestamp } from 'firebase/database'
 import toast, { Toaster } from 'react-hot-toast'
 import { auth, db, rtdb } from './lib/firebase'
 import { useStore } from './lib/store'
 import { getOrCreateKeypair, getPublicKeyB64 } from './lib/crypto'
 import { requestNotificationPermission, requestAndroidNotificationPermission, onForegroundMessage, cleanupMessaging } from './lib/notifications'
+import { showLocalNotification, isAppHidden, ensureNotificationPermission } from './lib/localNotify'
 import { App as CapacitorApp } from '@capacitor/app'
 import AuthPage from './pages/AuthPage'
 import MainApp from './pages/MainApp'
@@ -18,6 +19,7 @@ export default function App() {
   const user = useStore(s => s.user)
   const { setUser, setUserProfile, setOnlineUsers } = useStore()
   const permRequestedRef = useRef(false)
+  const lastMsgSeenRef = useRef({})
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -97,7 +99,7 @@ export default function App() {
     return unsub
   }, [user, setOnlineUsers])
 
-  // Foreground push notification handler
+  // Foreground push notification handler (from FCM)
   useEffect(() => {
     onForegroundMessage(data => {
       const conversationId = data.conversationId
@@ -123,6 +125,71 @@ export default function App() {
       }
     })
   }, [])
+
+  // Local notification handler — detect new messages via conversation snapshot
+  // This works even without FCM push because Firestore onSnapshot is active.
+  useEffect(() => {
+    if (!user) return
+    const q = query(
+      collection(db, 'conversations'),
+      where('members', 'array-contains', user.uid)
+    )
+    const unsub = fsOnSnapshot(q, async snap => {
+      snap.docChanges().forEach(change => {
+        if (change.type !== 'modified') return
+        const data = change.doc.data()
+        const lm = data.lastMessage
+        if (!lm || lm.senderId === user.uid) return
+        const otherUid = data.members?.find(m => m !== user.uid)
+        if (!otherUid) return
+
+        const convId = change.doc.id
+        // Avoid duplicate notifications (debounce same message)
+        const key = `${convId}-${lm.text}-${lm.senderId}`
+        if (lastMsgSeenRef.current[key]) return
+        lastMsgSeenRef.current[key] = true
+        setTimeout(() => { delete lastMsgSeenRef.current[key] }, 5000)
+
+        // Show toast for foreground, local notification for background
+        const state = useStore.getState()
+        if (convId === state.activeChatId) return
+
+        // Look up sender name from cache or Firestore
+        const displayName = lm.senderName || 'Someone'
+
+        if (isAppHidden()) {
+          ensureNotificationPermission().then(granted => {
+            if (granted) {
+              showLocalNotification(displayName, {
+                body: lm.text || (lm.type === 'image' ? '📷 Photo' : lm.type === 'audio' ? '🎤 Voice message' : lm.type === 'game' ? '🎮 Game' : 'New message'),
+                tag: `msg-${convId}`,
+                data: { conversationId: convId },
+              })
+            }
+          })
+        } else {
+          toast(`${displayName}: ${lastMessagePreview(lm)}`, {
+            icon: '💬',
+            duration: 4000,
+            style: { background: '#1a1a1a', color: '#fff', borderRadius: '14px' },
+          })
+        }
+      })
+    })
+    return unsub
+  }, [user])
+
+  function lastMessagePreview(msg) {
+    if (!msg) return ''
+    if (msg.type === 'image') return '📷 Photo'
+    if (msg.type === 'audio') return '🎤 Voice message'
+    if (msg.type === 'game') {
+      if (msg.gameType === 'wordle') return '🎮 Wordle'
+      if (msg.gameType === 'trivia') return '🎮 Trivia'
+      return '🎮 Game'
+    }
+    return (msg.text || '').slice(0, 60)
+  }
 
   // Handle back/gesture navigation — single back = navigate, double back root = exit
   useEffect(() => {

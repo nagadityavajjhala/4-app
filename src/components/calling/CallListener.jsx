@@ -5,6 +5,7 @@ import { db } from '../../lib/firebase'
 import { incomingCallsRef } from '../../lib/callSignaling'
 import { useStore } from '../../lib/store'
 import { startRinging, stopRinging } from '../../lib/ringtone'
+import { showLocalNotification, isAppHidden, ensureNotificationPermission } from '../../lib/localNotify'
 
 const profileCache = new Map()
 
@@ -46,6 +47,17 @@ export default function CallListener() {
       if (!remoteUser) {
         ringingRef.current.delete(conversationId)
         return
+      }
+
+      // Show system notification if app is in background
+      if (isAppHidden()) {
+        await ensureNotificationPermission()
+        showLocalNotification(`📞 ${remoteUser.displayName || 'Someone'} is calling`, {
+          body: `${data.type || 'Audio'} call`,
+          tag: `call-${conversationId}`,
+          requireInteraction: true,
+          vibrate: [200, 100, 200, 100, 200],
+        })
       }
 
       setCallState('incoming', {

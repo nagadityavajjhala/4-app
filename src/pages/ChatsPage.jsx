@@ -12,7 +12,7 @@ import StatusBar from '../components/status/StatusBar'
 import {
   Search, ChevronLeft, Send, Phone, Video,
   UserPlus, Lock, X, Check, CheckCheck, Camera, ImagePlus, Mic, Play, Pause,
-  Gamepad2, Palette, Trash2, SmilePlus, Download, Reply,
+  Gamepad2, Palette, Trash2, SmilePlus, Download, Reply, Bell, BellRing,
 } from 'lucide-react'
 import { format, isToday, isYesterday } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -23,6 +23,7 @@ import AppLogo from '../components/ui/AppLogo'
 import { ACCENT, ACCENT_SOFT, ACCENT_RGB, ACCENT_GLOW } from '../lib/accent'
 import { isUsernameAvailable, getCooldownDays, isReservedFor, RESERVED_USERNAMES } from '../lib/usernameManager'
 import { encryptMessage, decryptMessage, getPublicKeyB64 } from '../lib/crypto'
+import { ensureNotificationPermission } from '../lib/localNotify'
 import { setTyping, subscribeTyping } from '../lib/typingPresence'
 import { getChatTheme, setChatTheme, CHAT_THEMES } from '../lib/chatThemes'
 import DailyPromptBanner from '../components/chat/DailyPromptBanner'
@@ -681,6 +682,9 @@ function ChatView() {
   const [viewImage, setViewImage] = useState(null)
   const [replyTo, setReplyTo] = useState(null)
   const [hoveredMsgId, setHoveredMsgId] = useState(null)
+  const [notifGranted, setNotifGranted] = useState(
+    () => typeof Notification !== 'undefined' && Notification.permission === 'granted'
+  )
   const emojiPickerRef = useRef(null)
   const typingTimeoutRef = useRef(null)
   const otherMsgCountRef = useRef(0)
@@ -1203,6 +1207,21 @@ function ChatView() {
               {b.icon}
             </motion.button>
           ))}
+          <motion.button
+            whileTap={{ scale: 0.88 }}
+            onClick={async () => {
+              const granted = await ensureNotificationPermission()
+              setNotifGranted(granted)
+              if (!granted) {
+                toast.error('Enable notifications in your browser settings')
+              }
+            }}
+            className="w-9 h-9 rounded-full flex items-center justify-center"
+            style={{ background: ACCENT_SOFT, color: notifGranted ? ACCENT : 'rgba(255,255,255,0.3)' }}
+            title={notifGranted ? 'Notifications enabled' : 'Enable notifications'}
+          >
+            {notifGranted ? <BellRing size={15} strokeWidth={1.8} /> : <Bell size={15} strokeWidth={1.8} />}
+          </motion.button>
         </div>
       </div>
       {/* ── Messages ── */}

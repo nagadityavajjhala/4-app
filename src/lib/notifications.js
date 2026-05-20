@@ -15,24 +15,33 @@ export function initMessaging() {
 }
 
 export async function requestNotificationPermission() {
-  if (!messaging) return null
   try {
+    // Always request Notification permission regardless of FCM availability
+    if (typeof Notification === 'undefined') return null
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') return null
 
-    const token = await getToken(messaging, {
-      vapidKey: 'BFBoAh3sqcRmdBcACy6XvJLoYmMNK5AMY6ne84L1RQqE84RPSTghqCbZqE34YCF6LBfnOOs7RxxATQ-NglhqY8c',
-    })
-    if (token && auth.currentUser) {
-      await setDoc(doc(db, 'users', auth.currentUser.uid, 'fcmTokens', token), {
-        token,
-        platform: /android|iphone|ipad/i.test(navigator.userAgent) ? 'android' : 'web',
-        createdAt: new Date().toISOString(),
-      })
+    // Try to get FCM token if messaging is available
+    if (messaging) {
+      try {
+        const token = await getToken(messaging, {
+          vapidKey: 'BFBoAh3sqcRmdBcACy6XvJLoYmMNK5AMY6ne84L1RQqE84RPSTghqCbZqE34YCF6LBfnOOs7RxxATQ-NglhqY8c',
+        })
+        if (token && auth.currentUser) {
+          await setDoc(doc(db, 'users', auth.currentUser.uid, 'fcmTokens', token), {
+            token,
+            platform: /android|iphone|ipad/i.test(navigator.userAgent) ? 'android' : 'web',
+            createdAt: new Date().toISOString(),
+          })
+        }
+        return token
+      } catch (e) {
+        console.warn('FCM token error:', e.message)
+      }
     }
-    return token
+    return 'granted' // Notification permission granted even if FCM token failed
   } catch (e) {
-    console.warn('FCM setup:', e.message)
+    console.warn('Notification permission error:', e.message)
     return null
   }
 }

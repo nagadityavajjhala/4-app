@@ -136,8 +136,8 @@ export default function AuthPage() {
         await signInWithEmailAndPassword(auth, email.trim(), password)
       }
       // Request notification permission (user gesture context from button click)
-      requestNotificationPermission()
-      requestAndroidNotificationPermission()
+      await requestNotificationPermission()
+      await requestAndroidNotificationPermission()
     } catch (err) {
       toast.error(err.code?.replace('auth/', '') || err.message || 'Error')
     } finally {
@@ -158,8 +158,8 @@ export default function AuthPage() {
         await confirmRef.current.confirm(otp.trim())
       }
       // Request notification permission (user gesture context from button click)
-      requestNotificationPermission()
-      requestAndroidNotificationPermission()
+      await requestNotificationPermission()
+      await requestAndroidNotificationPermission()
       toast.success('Signed in!')
     } catch (err) {
       toast.error(err.code?.replace('auth/', '') || err.message || 'Invalid OTP')
