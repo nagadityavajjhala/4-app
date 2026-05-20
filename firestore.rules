@@ -1,10 +1,36 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // This is a private app — only people you share the URL with can access it.
-    // Any signed-in user can read/write anything. Simple and reliable.
+    // Users can read any profile (for searching), but only edit their own
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == userId;
+    }
+
+    // Conversations: only members can read/write
+    match /conversations/{conversationId} {
+      function isMember() {
+        return conversationId.split('_').hasAny([request.auth.uid]);
+      }
+      allow read: if request.auth != null && isMember();
+      allow create: if request.auth != null && isMember();
+      allow write: if request.auth != null && isMember();
+
+      // Messages subcollection: same membership check
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null && isMember();
+      }
+    }
+
+    // Statuses: any authenticated user can read/write (stories feature)
+    match /statuses/{statusId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // Deny everything else
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }

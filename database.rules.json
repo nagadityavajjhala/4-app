@@ -1,13 +1,33 @@
 {
   "rules": {
+    // Only authenticated users can read/write
     ".read": "auth != null",
     ".write": "auth != null",
+    // Typing indicators per conversation
+    "typing": {
+      "$conversationId": {
+        "$uid": {
+          ".read": "auth != null",
+          ".write": "auth.uid === $uid"
+        }
+      }
+    },
+    // Call signaling
     "callSignals": {
       "$calleeId": {
+        ".read": "auth.uid === $calleeId",
+        ".write": "auth != null",
         "$conversationId": {
-          ".read": "auth != null",
+          ".read": "auth.uid === $calleeId",
           ".write": "auth != null"
         }
+      }
+    },
+    // Presence
+    "presence": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth.uid === $uid"
       }
     }
   }

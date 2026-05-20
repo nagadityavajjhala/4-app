@@ -12,7 +12,7 @@ import StatusBar from '../components/status/StatusBar'
 import {
   Search, ChevronLeft, Send, Phone, Video,
   UserPlus, Lock, X, Check, CheckCheck, Camera, ImagePlus, Mic, Play, Pause,
-  Gamepad2, Palette, Trash2, SmilePlus, Download,
+  Gamepad2, Palette, Trash2, SmilePlus, Download, Reply,
 } from 'lucide-react'
 import { format, isToday, isYesterday } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -22,6 +22,7 @@ import {
 import AppLogo from '../components/ui/AppLogo'
 import { ACCENT, ACCENT_SOFT, ACCENT_RGB, ACCENT_GLOW } from '../lib/accent'
 import { isUsernameAvailable, getCooldownDays, isReservedFor, RESERVED_USERNAMES } from '../lib/usernameManager'
+import { encryptMessage, decryptMessage, getPublicKeyB64 } from '../lib/crypto'
 import { setTyping, subscribeTyping } from '../lib/typingPresence'
 import { getChatTheme, setChatTheme, CHAT_THEMES } from '../lib/chatThemes'
 import DailyPromptBanner from '../components/chat/DailyPromptBanner'
@@ -678,10 +679,14 @@ function ChatView() {
   const [showThemePicker, setShowThemePicker] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [viewImage, setViewImage] = useState(null)
+  const [replyTo, setReplyTo] = useState(null)
+  const [hoveredMsgId, setHoveredMsgId] = useState(null)
   const emojiPickerRef = useRef(null)
   const typingTimeoutRef = useRef(null)
   const otherMsgCountRef = useRef(0)
   const initialLoadDoneRef = useRef(false)
+  const [otherPublicKey, setOtherPublicKey] = useState(null)
+  const readAtUpdatedRef = useRef(false)
 
   const theme = CHAT_THEMES[themeId] || CHAT_THEMES.classic
 
@@ -703,9 +708,32 @@ function ChatView() {
       const otherRead = data?.readAt?.[activeChatUser?.uid]
       setOtherReadAt(otherRead?.toMillis?.() ?? null)
     })
-    setDoc(convoRef, { [`readAt.${user.uid}`]: serverTimestamp() }, { merge: true }).catch(() => {})
+    if (!readAtUpdatedRef.current) {
+      setDoc(convoRef, { [`readAt.${user.uid}`]: serverTimestamp() }, { merge: true }).catch(() => {})
+      readAtUpdatedRef.current = true
+    }
     return unsub
   }, [activeChatId, activeChatUser?.uid, user])
+
+  // Load the other user's public key for E2E encryption
+  useEffect(() => {
+    if (!activeChatUser?.uid) return
+    setOtherPublicKey(null)
+    const loadKey = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'users', activeChatUser.uid))
+        if (snap.exists() && snap.data().publicKey) {
+          setOtherPublicKey(snap.data().publicKey)
+        }
+      } catch { /* key not available — messages will be stored as plaintext */ }
+    }
+    loadKey()
+    // Also ensure our own public key is saved
+    const ourPubKey = getPublicKeyB64()
+    if (ourPubKey) {
+      setDoc(doc(db, 'users', user.uid), { publicKey: ourPubKey }, { merge: true }).catch(() => {})
+    }
+  }, [activeChatUser?.uid, user.uid])
 
   useEffect(() => {
     return () => {
@@ -736,6 +764,16 @@ function ChatView() {
       }
       otherMsgCountRef.current = others.length
       initialLoadDoneRef.current = true
+
+      // Update readAt when viewing new messages from others
+      if (others.length > 0 && user) {
+        setDoc(
+          doc(db, 'conversations', activeChatId),
+          { [`readAt.${user.uid}`]: serverTimestamp() },
+          { merge: true }
+        ).catch(() => {})
+      }
+
       requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'instant' }))
     })
     return unsub
@@ -873,15 +911,44 @@ function ChatView() {
     const text = input.trim()
     if (!text || sending) return
 
-    const clientId = pushOptimistic({ type: 'text', text })
+    const payload = { type: 'text', text }
+
+    // Add reply context if replying to a message
+    if (replyTo) {
+      const replyPreview = replyTo.type === 'text' ? replyTo.text
+        : replyTo.type === 'image' ? '📷 Photo'
+        : replyTo.type === 'audio' ? '🎤 Voice message'
+        : replyTo.type === 'game' ? '🎮 Game' : ''
+      payload.replyTo = {
+        id: replyTo.id,
+        senderName: replyTo.senderName,
+        text: replyPreview,
+        type: replyTo.type,
+      }
+    }
+
+    // Encrypt text if we have the other user's public key
+    if (otherPublicKey) {
+      try {
+        const encrypted = encryptMessage(text, otherPublicKey)
+        payload.encrypted = true
+        payload.ciphertext = encrypted.ciphertext
+        payload.nonce = encrypted.nonce
+      } catch {
+        // Fall back to plaintext if encryption fails
+      }
+    }
+
+    const clientId = pushOptimistic({ ...payload })
     setInput('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
+    setReplyTo(null)
 
     setSending(true)
     if (activeChatId && user) setTyping(activeChatId, user.uid, false)
     try {
       await commitMessage(
-        { type: 'text', text, clientId },
+        { ...payload, clientId },
         { type: 'text', text: text.slice(0, 40) },
       )
     } catch (err) {
@@ -1126,6 +1193,7 @@ function ChatView() {
           const prev    = messages[i - 1]
           const showTs  = !prev || (ts && prev.createdAt?.toDate &&
             ts - prev.createdAt.toDate() > 5 * 60 * 1000)
+          const isHovered = hoveredMsgId === msg.id
 
           return (
             <React.Fragment key={msg.id}>
@@ -1134,45 +1202,70 @@ function ChatView() {
                   {format(ts, isToday(ts) ? 'HH:mm' : 'MMM d, HH:mm')}
                 </div>
               )}
-              <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-                <motion.div
-                  initial={msg._pending ? false : { opacity: 0, y: 4 }}
-                  animate={{ opacity: msg._pending ? 0.7 : 1, y: 0 }}
-                  transition={{ duration: 0.12 }}
-                  className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setReactionTarget(reactionTarget === msg.id ? null : msg.id)}
-                    onDoubleClick={() => toggleReaction(msg, '👍')}
-                    style={{
-                      textAlign: isMine ? 'right' : 'left',
-                      width: 'fit-content',
-                      maxWidth: '75vw',
-                      background: isMine
-                        ? 'linear-gradient(135deg, #ff453a 0%, #ff375f 100%)'
-                        : (theme.received || 'rgba(44,44,46,0.92)'),
-                      borderRadius: '22px',
-                      borderBottomRightRadius: isMine ? '4px' : '22px',
-                      borderBottomLeftRadius: isMine ? '22px' : '4px',
-                      padding: '10px 16px',
-                      fontSize: 15,
-                      lineHeight: 1.55,
-                      color: '#fff',
-                      boxShadow: isMine ? '0 2px 12px rgba(255,69,58,0.2)' : 'none',
-                      border: isMine ? 'none' : '0.5px solid rgba(255,255,255,0.05)',
-                    }}
+              <div
+                className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}
+                onMouseEnter={() => setHoveredMsgId(msg.id)}
+                onMouseLeave={() => setHoveredMsgId(null)}
+              >
+                <div className={`flex items-end gap-1.5 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
+                  {/* Reply button — appears on hover */}
+                  {!msg._pending && (
+                    <motion.button
+                      initial={false}
+                      animate={{ opacity: isHovered ? 1 : 0, scale: isHovered ? 1 : 0.8 }}
+                      transition={{ duration: 0.12 }}
+                      whileTap={{ scale: 0.85 }}
+                      onClick={() => setReplyTo(msg)}
+                      className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{
+                        background: 'rgba(255,255,255,0.08)',
+                        pointerEvents: isHovered ? 'auto' : 'none',
+                      }}
+                      title="Reply"
+                    >
+                      <Reply size={12} strokeWidth={2} className="text-white/50" />
+                    </motion.button>
+                  )}
+                  <motion.div
+                    initial={msg._pending ? false : { opacity: 0, y: 4 }}
+                    animate={{ opacity: msg._pending ? 0.7 : 1, y: 0 }}
+                    transition={{ duration: 0.12 }}
+                    className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
                   >
-                    <MessageContent
-                      msg={msg}
-                      isMine={isMine}
-                      viewerUid={user.uid}
-                      onWordleGuess={submitWordleGuess}
-                      onTriviaAnswer={submitTriviaAnswer}
-                      onImageClick={setViewImage}
-                    />
-                  </button>
-                </motion.div>
+                    <button
+                      type="button"
+                      onClick={() => setReactionTarget(reactionTarget === msg.id ? null : msg.id)}
+                      onDoubleClick={() => toggleReaction(msg, '👍')}
+                      style={{
+                        textAlign: isMine ? 'right' : 'left',
+                        width: 'fit-content',
+                        maxWidth: '75vw',
+                        background: isMine
+                          ? 'linear-gradient(135deg, #ff453a 0%, #ff375f 100%)'
+                          : (theme.received || 'rgba(44,44,46,0.92)'),
+                        borderRadius: '22px',
+                        borderBottomRightRadius: isMine ? '4px' : '22px',
+                        borderBottomLeftRadius: isMine ? '22px' : '4px',
+                        padding: '10px 16px',
+                        fontSize: 15,
+                        lineHeight: 1.55,
+                        color: '#fff',
+                        boxShadow: isMine ? '0 2px 12px rgba(255,69,58,0.2)' : 'none',
+                        border: isMine ? 'none' : '0.5px solid rgba(255,255,255,0.05)',
+                      }}
+                    >
+                      <MessageContent
+                        msg={msg}
+                        isMine={isMine}
+                        viewerUid={user.uid}
+                        onWordleGuess={submitWordleGuess}
+                        onTriviaAnswer={submitTriviaAnswer}
+                        onImageClick={setViewImage}
+                        otherPubKey={otherPublicKey}
+                      />
+                    </button>
+                  </motion.div>
+                </div>
                 {isMine && !msg._pending && msg.createdAt?.toMillis && (
                   <span className="flex items-center gap-0.5 mt-0.5 mr-1 text-white/30">
                     {isMessageRead(msg)
@@ -1231,6 +1324,40 @@ function ChatView() {
         })}
         <div ref={bottomRef} />
       </div>
+
+      {/* ── Reply preview bar ── */}
+      {replyTo && (
+        <div
+          className="flex items-center gap-2 px-4 py-2 border-t"
+          style={{
+            background: 'rgba(10,10,12,0.7)',
+            backdropFilter: 'saturate(200%) blur(50px)',
+            WebkitBackdropFilter: 'saturate(200%) blur(50px)',
+            borderColor: 'rgba(255,255,255,0.06)',
+          }}
+        >
+          <div className="w-0.5 h-8 rounded-full flex-shrink-0" style={{ background: ACCENT }} />
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] font-semibold leading-tight" style={{ color: ACCENT }}>
+              {replyTo.senderName}
+            </p>
+            <p className="text-[12px] text-white/40 truncate leading-tight">
+              {replyTo.type === 'text' ? replyTo.text
+                : replyTo.type === 'image' ? '📷 Photo'
+                : replyTo.type === 'audio' ? '🎤 Voice message'
+                : replyTo.type === 'game' ? '🎮 Game' : ''}
+            </p>
+          </div>
+          <motion.button
+            whileTap={{ scale: 0.85 }}
+            onClick={() => setReplyTo(null)}
+            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(255,255,255,0.08)' }}
+          >
+            <X size={14} strokeWidth={2} className="text-white/50" />
+          </motion.button>
+        </div>
+      )}
 
       {/* ── Input bar ── */}
       <div
@@ -1386,7 +1513,7 @@ function ChatView() {
   )
 }
 
-function MessageContent({ msg, isMine, viewerUid, onWordleGuess, onTriviaAnswer, onImageClick }) {
+function MessageContent({ msg, isMine, viewerUid, onWordleGuess, onTriviaAnswer, onImageClick, otherPubKey }) {
   if (msg.type === 'game' && msg.gameType === 'wordle') {
     return <WordleGameMessage msg={msg} isMine={isMine} onGuess={onWordleGuess} />
   }
@@ -1400,10 +1527,22 @@ function MessageContent({ msg, isMine, viewerUid, onWordleGuess, onTriviaAnswer,
       />
     )
   }
+
+  // Decrypt text if encrypted
+  let displayText = msg.text
+  if (msg.encrypted && msg.ciphertext && msg.nonce && otherPubKey) {
+    try {
+      displayText = decryptMessage(msg.ciphertext, msg.nonce, otherPubKey)
+    } catch {
+      displayText = '🔒 Encrypted'
+    }
+  }
+
   const imgSrc = msg.imageData || msg.imageUrl
   if (msg.type === 'image' && imgSrc) {
     return (
-      <div style={{ textAlign: isMine ? 'right' : 'center' }}>
+      <div>
+        {msg.replyTo && <ReplyQuote replyTo={msg.replyTo} isMine={isMine} />}
         <img
           src={imgSrc}
           alt="Shared"
@@ -1416,9 +1555,39 @@ function MessageContent({ msg, isMine, viewerUid, onWordleGuess, onTriviaAnswer,
   }
   const audioSrc = msg.audioData || msg.audioUrl
   if (msg.type === 'audio' && audioSrc) {
-    return <VoiceBubble url={audioSrc} duration={msg.audioDuration} isMine={isMine} />
+    return (
+      <div>
+        {msg.replyTo && <ReplyQuote replyTo={msg.replyTo} isMine={isMine} />}
+        <VoiceBubble url={audioSrc} duration={msg.audioDuration} isMine={isMine} />
+      </div>
+    )
   }
-  return <span>{msg.text || ''}</span>
+  return (
+    <span>
+      {msg.replyTo && <ReplyQuote replyTo={msg.replyTo} isMine={isMine} />}
+      {displayText || ''}
+    </span>
+  )
+}
+
+function ReplyQuote({ replyTo, isMine }) {
+  return (
+    <div
+      className="text-[12px] mb-1.5 pl-2.5 border-l-2 rounded-sm"
+      style={{
+        borderColor: isMine ? 'rgba(255,255,255,0.4)' : ACCENT,
+        opacity: 0.8,
+      }}
+    >
+      <span
+        className="font-semibold text-[11px] block"
+        style={{ color: isMine ? 'rgba(255,255,255,0.7)' : ACCENT }}
+      >
+        {replyTo.senderName}
+      </span>
+      <span className="text-white/60 line-clamp-1">{replyTo.text}</span>
+    </div>
+  )
 }
 
 function VoiceBubble({ url, duration, isMine }) {
