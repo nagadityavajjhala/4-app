@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
@@ -17,6 +17,7 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const user = useStore(s => s.user)
   const { setUser, setUserProfile, setOnlineUsers } = useStore()
+  const permRequestedRef = useRef(false)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -62,16 +63,20 @@ export default function App() {
         set(presenceRef, { online: true, lastSeen: rtServerTimestamp() })
         onDisconnect(presenceRef).set({ online: false, lastSeen: rtServerTimestamp() })
 
-        // Setup push notifications — immediately for FCM + Android permission
-        requestNotificationPermission()
-
-        // On Android (Capacitor), also request notification permission natively
-        requestAndroidNotificationPermission()
-
-        // Also try again after a short delay as fallback
-        setTimeout(() => {
-          requestNotificationPermission()
-        }, 4000)
+        // Push notification permission requires a user gesture (Chrome).
+        // Request on first user click/tap after auth.
+        if (!permRequestedRef.current) {
+          const requestOnGesture = () => {
+            if (permRequestedRef.current) return
+            permRequestedRef.current = true
+            requestNotificationPermission()
+            requestAndroidNotificationPermission()
+            document.removeEventListener('click', requestOnGesture)
+            document.removeEventListener('touchstart', requestOnGesture)
+          }
+          document.addEventListener('click', requestOnGesture, { once: true })
+          document.addEventListener('touchstart', requestOnGesture, { once: true })
+        }
 
       } else {
         setUser(null)
