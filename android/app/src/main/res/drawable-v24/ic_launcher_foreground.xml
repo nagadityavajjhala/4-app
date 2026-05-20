@@ -6,23 +6,26 @@
     <group
         android:translateX="10"
         android:translateY="10">
+        <!-- Main "4" shape — right vertical leg -->
         <path
             android:fillColor="#FFFFFF"
             android:strokeColor="#FFFFFF"
-            android:strokeWidth="9"
+            android:strokeWidth="14"
             android:strokeLineCap="round"
-            android:pathData="M44,12L44,76"/>
+            android:pathData="M36,14L36,76"/>
+        <!-- Cross bar — from left to past center -->
         <path
             android:fillColor="#FFFFFF"
             android:strokeColor="#FFFFFF"
-            android:strokeWidth="9"
+            android:strokeWidth="14"
             android:strokeLineCap="round"
-            android:pathData="M12,44L46,44"/>
+            android:pathData="M8,38L42,38"/>
+        <!-- Diagonal — top-left to cross bar junction -->
         <path
             android:fillColor="#FFFFFF"
             android:strokeColor="#FFFFFF"
-            android:strokeWidth="9"
+            android:strokeWidth="14"
             android:strokeLineCap="round"
-            android:pathData="M20,16L44,44"/>
+            android:pathData="M10,14L34,38"/>
     </group>
 </vector>

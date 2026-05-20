@@ -1,0 +1,17 @@
+{
+  "name": "4-app-functions",
+  "description": "Firebase Cloud Functions for 4 App",
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions"
+  },
+  "engines": {
+    "node": "18"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^11.11.0",
+    "firebase-functions": "^4.9.0"
+  },
+  "private": true
+}

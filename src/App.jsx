@@ -7,7 +7,7 @@ import toast, { Toaster } from 'react-hot-toast'
 import { auth, db, rtdb } from './lib/firebase'
 import { useStore } from './lib/store'
 import { getOrCreateKeypair, getPublicKeyB64 } from './lib/crypto'
-import { requestNotificationPermission, onForegroundMessage, cleanupMessaging } from './lib/notifications'
+import { requestNotificationPermission, requestAndroidNotificationPermission, onForegroundMessage, cleanupMessaging } from './lib/notifications'
 import { App as CapacitorApp } from '@capacitor/app'
 import AuthPage from './pages/AuthPage'
 import MainApp from './pages/MainApp'
@@ -62,10 +62,16 @@ export default function App() {
         set(presenceRef, { online: true, lastSeen: rtServerTimestamp() })
         onDisconnect(presenceRef).set({ online: false, lastSeen: rtServerTimestamp() })
 
-        // Setup push notifications
+        // Setup push notifications — immediately for FCM + Android permission
+        requestNotificationPermission()
+
+        // On Android (Capacitor), also request notification permission natively
+        requestAndroidNotificationPermission()
+
+        // Also try again after a short delay as fallback
         setTimeout(() => {
           requestNotificationPermission()
-        }, 2000)
+        }, 4000)
 
       } else {
         setUser(null)

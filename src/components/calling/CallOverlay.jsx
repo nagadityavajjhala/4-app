@@ -306,6 +306,20 @@ export default function CallOverlay() {
     })
   }, [callState, conversationId, myUid, cleanupMedia, setCallState])
 
+  // End call when tab/window is closed
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (!endedRef.current) {
+        const pathUid = getSignalPathUid()
+        if (pathUid && conversationId) {
+          endCallSignal(pathUid, conversationId).catch(() => {})
+        }
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [getSignalPathUid, conversationId])
+
   useEffect(() => {
     endedRef.current = false
     if (callState === 'outgoing' && callData?._role !== 'callee') {

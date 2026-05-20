@@ -56,3 +56,35 @@ export function onForegroundMessage(handler) {
 export function cleanupMessaging() {
   if (unsubMessage) unsubMessage()
 }
+
+/**
+ * Request native notification permission on Android via Capacitor plugin.
+ * Call this after auth on Capacitor builds.
+ */
+export async function requestAndroidNotificationPermission() {
+  try {
+    const isNative = window.Capacitor?.isNative
+    if (!isNative) return false
+    const { FirebaseMessaging } = await import('@capacitor-firebase/messaging')
+    const result = await FirebaseMessaging.requestPermissions()
+    const granted = result.receive === 'granted'
+    if (granted) {
+      const { getToken: getFcmToken } = await import('firebase/messaging')
+      if (messaging && auth.currentUser) {
+        const token = await getFcmToken(messaging, {
+          vapidKey: 'BFBoAh3sqcRmdBcACy6XvJLoYmMNK5AMY6ne84L1RQqE84RPSTghqCbZqE34YCF6LBfnOOs7RxxATQ-NglhqY8c',
+        })
+        if (token) {
+          await setDoc(doc(db, 'users', auth.currentUser.uid, 'fcmTokens', token), {
+            token,
+            platform: 'android',
+            createdAt: new Date().toISOString(),
+          })
+        }
+      }
+    }
+    return granted
+  } catch {
+    return false
+  }
+}

@@ -687,6 +687,7 @@ function ChatView() {
   const initialLoadDoneRef = useRef(false)
   const [otherPublicKey, setOtherPublicKey] = useState(null)
   const readAtUpdatedRef = useRef(false)
+  const touchStartRef = useRef({ x: 0, time: 0 })
 
   const theme = CHAT_THEMES[themeId] || CHAT_THEMES.classic
 
@@ -1085,7 +1086,26 @@ function ChatView() {
     return () => document.removeEventListener('mousedown', handler)
   }, [showEmojiPicker])
 
-  function startCall(type) {
+  async function startCall(type) {
+    // Check and request permissions before starting a call
+    if (navigator.mediaDevices?.getUserMedia) {
+      try {
+        const constraints = {
+          audio: true,
+          video: type === 'video',
+        }
+        // Do a quick permission check — this will prompt the user
+        const testStream = await navigator.mediaDevices.getUserMedia(constraints)
+        testStream.getTracks().forEach(t => t.stop())
+      } catch (err) {
+        const msg = String(err?.message || err)
+        if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('denied')) {
+          toast.error(`Please grant ${type === 'video' ? 'camera and ' : ''}microphone access in your browser settings`)
+          return
+        }
+        // Allow proceeding even if check fails (some browsers limit this)
+      }
+    }
     setCallState('outgoing', { type, remoteUser: activeChatUser, conversationId: activeChatId })
   }
 
@@ -1206,6 +1226,24 @@ function ChatView() {
                 className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}
                 onMouseEnter={() => setHoveredMsgId(msg.id)}
                 onMouseLeave={() => setHoveredMsgId(null)}
+                onTouchStart={e => {
+                  const touch = e.touches[0]
+                  touchStartRef.current = { x: touch.clientX, time: Date.now() }
+                }}
+                onTouchMove={e => {
+                  const touch = e.touches[0]
+                  const deltaX = touch.clientX - touchStartRef.current.x
+                  if (deltaX > 50 && !msg._pending) {
+                    setHoveredMsgId(msg.id)
+                  }
+                }}
+                onTouchEnd={() => {
+                  const elapsed = Date.now() - touchStartRef.current.time
+                  if (elapsed > 400 && !msg._pending) {
+                    setReplyTo(msg)
+                  }
+                  setHoveredMsgId(null)
+                }}
               >
                 <div className={`flex items-end gap-1.5 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
                   {/* Reply button — appears on hover */}
@@ -1236,6 +1274,10 @@ function ChatView() {
                       type="button"
                       onClick={() => setReactionTarget(reactionTarget === msg.id ? null : msg.id)}
                       onDoubleClick={() => toggleReaction(msg, '👍')}
+                      onContextMenu={e => {
+                        e.preventDefault()
+                        if (!msg._pending) setReplyTo(msg)
+                      }}
                       style={{
                         textAlign: isMine ? 'right' : 'left',
                         width: 'fit-content',
