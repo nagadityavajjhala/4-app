@@ -68,32 +68,47 @@ export function cleanupMessaging() {
 
 /**
  * Request native notification permission on Android via Capacitor plugin.
- * Call this after auth on Capacitor builds.
+ * Also attempts the Web Notification API as a fallback.
  */
 export async function requestAndroidNotificationPermission() {
+  // First, try the Web Notification API (works on some WebView versions)
+  let granted = false
   try {
-    const isNative = window.Capacitor?.isNative
-    if (!isNative) return false
+    if (typeof Notification !== 'undefined' && Notification.permission !== 'denied') {
+      const perm = await Notification.requestPermission()
+      granted = perm === 'granted'
+    }
+  } catch (e) {
+    console.warn('Web Notification permission error:', e)
+  }
+
+  // Then, try the Capacitor native approach (Android 13+ POST_NOTIFICATIONS dialog)
+  try {
     const { FirebaseMessaging } = await import('@capacitor-firebase/messaging')
     const result = await FirebaseMessaging.requestPermissions()
-    const granted = result.receive === 'granted'
-    if (granted) {
-      const { getToken: getFcmToken } = await import('firebase/messaging')
-      if (messaging && auth.currentUser) {
-        const token = await getFcmToken(messaging, {
-          vapidKey: 'BFBoAh3sqcRmdBcACy6XvJLoYmMNK5AMY6ne84L1RQqE84RPSTghqCbZqE34YCF6LBfnOOs7RxxATQ-NglhqY8c',
-        })
-        if (token) {
-          await setDoc(doc(db, 'users', auth.currentUser.uid, 'fcmTokens', token), {
-            token,
-            platform: 'android',
-            createdAt: new Date().toISOString(),
-          })
-        }
-      }
+    if (result.receive === 'granted') {
+      granted = true
     }
-    return granted
-  } catch {
-    return false
+  } catch (e) {
+    console.warn('Capacitor native notification permission error:', e)
   }
+
+  if (granted && messaging && auth.currentUser) {
+    try {
+      const { getToken: getFcmToken } = await import('firebase/messaging')
+      const token = await getFcmToken(messaging, {
+        vapidKey: 'BFBoAh3sqcRmdBcACy6XvJLoYmMNK5AMY6ne84L1RQqE84RPSTghqCbZqE34YCF6LBfnOOs7RxxATQ-NglhqY8c',
+      })
+      if (token) {
+        await setDoc(doc(db, 'users', auth.currentUser.uid, 'fcmTokens', token), {
+          token,
+          platform: 'android',
+          createdAt: new Date().toISOString(),
+        })
+      }
+    } catch (e) {
+      console.warn('FCM token save error:', e)
+    }
+  }
+  return granted
 }

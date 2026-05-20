@@ -65,19 +65,14 @@ export default function App() {
         set(presenceRef, { online: true, lastSeen: rtServerTimestamp() })
         onDisconnect(presenceRef).set({ online: false, lastSeen: rtServerTimestamp() })
 
-        // Push notification permission requires a user gesture (Chrome).
-        // Request on first user click/tap after auth.
+        // Push notifications: request permission shortly after navigation,
+        // giving the Android Activity time to stabilize.
         if (!permRequestedRef.current) {
-          const requestOnGesture = () => {
-            if (permRequestedRef.current) return
-            permRequestedRef.current = true
+          permRequestedRef.current = true
+          setTimeout(() => {
             requestNotificationPermission()
             requestAndroidNotificationPermission()
-            document.removeEventListener('click', requestOnGesture)
-            document.removeEventListener('touchstart', requestOnGesture)
-          }
-          document.addEventListener('click', requestOnGesture, { once: true })
-          document.addEventListener('touchstart', requestOnGesture, { once: true })
+          }, 500)
         }
 
       } else {

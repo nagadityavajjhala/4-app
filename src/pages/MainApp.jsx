@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useStore } from '../lib/store'
+import { requestNotificationPermission, requestAndroidNotificationPermission } from '../lib/notifications'
 import ChatsPage from './ChatsPage'
 import NewsPage from './NewsPage'
 import GamesPage from './GamesPage'
@@ -19,6 +20,15 @@ const pageSpring = { type: 'spring', stiffness: 500, damping: 35, mass: 0.5 }
 export default function MainApp() {
   const { activeTab, callState } = useStore()
   const ActivePage = tabs[activeTab] || ChatsPage
+
+  // Request notification permission after main app mounts (activity is stable)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      requestNotificationPermission()
+      requestAndroidNotificationPermission()
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
     <div className="h-full flex flex-col bg-black overflow-hidden">
