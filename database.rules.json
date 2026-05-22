@@ -12,13 +12,13 @@
         }
       }
     },
-    // Call signaling
+    // Call signaling — both caller and callee need read access
     "callSignals": {
       "$calleeId": {
-        ".read": "auth.uid === $calleeId",
+        ".read": "auth != null",
         ".write": "auth != null",
         "$conversationId": {
-          ".read": "auth.uid === $calleeId",
+          ".read": "auth != null",
           ".write": "auth != null"
         }
       }
