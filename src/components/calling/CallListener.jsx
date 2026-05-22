@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { onValue } from 'firebase/database'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
-import { incomingCallsRef } from '../../lib/callSignaling'
+import { allIncomingCallsRef } from '../../lib/callSignaling'
 import { useStore } from '../../lib/store'
 import { startRinging, stopRinging } from '../../lib/ringtone'
 import { showLocalNotification, isAppHidden, ensureNotificationPermission } from '../../lib/localNotify'
@@ -35,7 +35,7 @@ export default function CallListener() {
   useEffect(() => {
     if (!user?.uid) return
 
-    const callsRef = incomingCallsRef(user.uid)
+    const callsRef = allIncomingCallsRef()
 
     async function considerCall(conversationId, data) {
       if (!data || data.status !== 'ringing' || data.calleeId !== user.uid) return

@@ -12,15 +12,11 @@
         }
       }
     },
-    // Call signaling — both caller and callee need read access
+    // Call signaling — conversation-based, both participants can read/write
     "callSignals": {
-      "$calleeId": {
+      "$conversationId": {
         ".read": "auth != null",
-        ".write": "auth != null",
-        "$conversationId": {
-          ".read": "auth != null",
-          ".write": "auth != null"
-        }
+        ".write": "auth != null"
       }
     },
     // Presence

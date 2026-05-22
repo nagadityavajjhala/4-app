@@ -105,20 +105,15 @@ export default function CallOverlay() {
     if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null
   }, [])
 
-  const getSignalPathUid = useCallback(() => {
-    return roleRef.current === 'callee' ? myUid : callData?.remoteUser?.uid
-  }, [myUid, callData?.remoteUser?.uid])
-
   const hangUp = useCallback(async () => {
     if (endedRef.current) return
     endedRef.current = true
-    const pathUid = getSignalPathUid()
-    if (pathUid && conversationId) {
-      await endCallSignal(pathUid, conversationId)
+    if (conversationId) {
+      await endCallSignal(conversationId)
     }
     cleanupMedia()
     setCallState(null)
-  }, [getSignalPathUid, conversationId, cleanupMedia, setCallState])
+  }, [conversationId, cleanupMedia, setCallState])
 
   const attachRemoteStream = useCallback(stream => {
     if (isVideo && remoteVideoRef.current) {
@@ -145,7 +140,7 @@ export default function CallOverlay() {
     }
   }, [])
 
-  const setupPeerConnection = useCallback((stream, role, pathUid) => {
+  const setupPeerConnection = useCallback((stream, role) => {
     const pc = new RTCPeerConnection(ICE_SERVERS)
     pcRef.current = pc
     roleRef.current = role
@@ -167,14 +162,14 @@ export default function CallOverlay() {
     }
 
     pc.onicecandidate = e => {
-      if (e.candidate && pathUid && conversationId) {
-        pushIceCandidate(pathUid, conversationId, role, e.candidate)
+      if (e.candidate && conversationId) {
+        pushIceCandidate(conversationId, role, e.candidate)
       }
     }
 
     const remoteRole = role === 'caller' ? 'callee' : 'caller'
     addUnsub(
-      listenIceCandidates(pathUid, conversationId, remoteRole, (data, key) => {
+      listenIceCandidates(conversationId, remoteRole, (data, key) => {
         if (!data || seenCandidatesRef.current.has(key)) return
         seenCandidatesRef.current.add(key)
         addRemoteIce(pc, data)
@@ -206,9 +201,9 @@ export default function CallOverlay() {
 
     try {
       const stream = await acquireMedia()
-      await removeCallSignal(calleeUid, conversationId).catch(() => {})
+      await removeCallSignal(conversationId).catch(() => {})
 
-      const pc = setupPeerConnection(stream, 'caller', calleeUid)
+      const pc = setupPeerConnection(stream, 'caller')
 
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
@@ -226,7 +221,7 @@ export default function CallOverlay() {
       })
 
       addUnsub(
-        listenCallSignal(calleeUid, conversationId, async data => {
+        listenCallSignal(conversationId, async data => {
           if (!data) return
           if (data.status === 'ended') {
             hangUp()
@@ -254,14 +249,14 @@ export default function CallOverlay() {
     setStatusLabel('Connecting…')
 
     try {
-      const data = await readCallSignal(myUid, conversationId)
+      const data = await readCallSignal(conversationId)
       if (!data?.offer || data.status === 'ended') {
         hangUp()
         return
       }
 
       const stream = await acquireMedia()
-      const pc = setupPeerConnection(stream, 'callee', myUid)
+      const pc = setupPeerConnection(stream, 'callee')
       await pc.setRemoteDescription(new RTCSessionDescription(data.offer))
       flushPendingIce(pc)
 
@@ -269,10 +264,10 @@ export default function CallOverlay() {
       const tunedAnswer = { ...answer, sdp: preferHighQualityAudio(answer.sdp) }
       await pc.setLocalDescription(tunedAnswer)
 
-      await writeCallAnswer(myUid, conversationId, tunedAnswer)
+      await writeCallAnswer(conversationId, tunedAnswer)
 
       addUnsub(
-        listenCallSignal(myUid, conversationId, d => {
+        listenCallSignal(conversationId, d => {
           if (d?.status === 'ended') hangUp()
         }),
       )
@@ -288,37 +283,34 @@ export default function CallOverlay() {
 
   const declineIncomingCall = useCallback(async () => {
     endedRef.current = true
-    if (myUid && conversationId) {
-      await endCallSignal(myUid, conversationId)
+    if (conversationId) {
+      await endCallSignal(conversationId)
     }
     cleanupMedia()
     setCallState(null)
-  }, [myUid, conversationId, cleanupMedia, setCallState])
+  }, [conversationId, cleanupMedia, setCallState])
 
   useEffect(() => {
-    if (callState !== 'incoming' || !conversationId || !myUid) return
-    return listenCallSignal(myUid, conversationId, data => {
+    if (callState !== 'incoming' || !conversationId) return
+    return listenCallSignal(conversationId, data => {
       if (!data || data.status === 'ended') {
         endedRef.current = true
         cleanupMedia()
         setCallState(null)
       }
     })
-  }, [callState, conversationId, myUid, cleanupMedia, setCallState])
+  }, [callState, conversationId, cleanupMedia, setCallState])
 
   // End call when tab/window is closed
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (!endedRef.current) {
-        const pathUid = getSignalPathUid()
-        if (pathUid && conversationId) {
-          endCallSignal(pathUid, conversationId).catch(() => {})
-        }
+      if (!endedRef.current && conversationId) {
+        endCallSignal(conversationId).catch(() => {})
       }
     }
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [getSignalPathUid, conversationId])
+  }, [conversationId])
 
   useEffect(() => {
     endedRef.current = false
@@ -326,11 +318,8 @@ export default function CallOverlay() {
       startOutgoingCall()
     }
     return () => {
-      if (!endedRef.current && pcRef.current) {
-        const pathUid = getSignalPathUid()
-        if (pathUid && conversationId) {
-          endCallSignal(pathUid, conversationId)
-        }
+      if (!endedRef.current && pcRef.current && conversationId) {
+        endCallSignal(conversationId)
       }
       cleanupMedia()
     }
